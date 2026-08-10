@@ -1,0 +1,27 @@
+<div class="crawl-card {{#if crit}}is-crit{{/if}} {{#if fumble}}is-fumble{{/if}}">
+  <header class="crawl-card-head">
+    <span class="crawl-tab">{{actorName}}</span>
+    <h4>{{label}}</h4>
+  </header>
+
+  <div class="crawl-card-result" title="d20 {{die}} {{modSign}}">
+    <span class="crawl-card-total">{{total}}</span>
+    <span class="crawl-card-detail">d20 [{{die}}] {{modSign}}</span>
+  </div>
+
+  {{#if dc}}
+  <div class="crawl-card-verdict {{#if success}}hit{{else}}miss{{/if}}">
+    {{#if success}}Beats DC {{dc}}{{else}}Falls short of DC {{dc}}{{/if}}
+  </div>
+  {{/if}}
+
+  {{#if crit}}<div class="crawl-card-banner">Critical hit — roll critical damage</div>{{/if}}
+  {{#if fumble}}<div class="crawl-card-banner">Fumble</div>{{/if}}
+
+  {{#if showDamage}}
+  <div class="crawl-card-buttons">
+    <button type="button" data-crawl-action="damage">Damage</button>
+    {{#if crit}}<button type="button" data-crawl-action="crit">Critical damage</button>{{/if}}
+  </div>
+  {{/if}}
+</div>

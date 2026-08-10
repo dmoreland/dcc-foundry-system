@@ -1,0 +1,169 @@
+<div class="crawl-sheet-body">
+<header class="crawl-head">
+  <img class="crawl-portrait" src="{{actor.img}}" data-edit="img" alt="{{actor.name}}">
+  <div class="crawl-ident">
+    <input class="crawl-name" type="text" name="name" value="{{actor.name}}" {{#unless editable}}disabled{{/unless}}>
+    <div class="crawl-ident-row">
+      <label>Level <input type="number" name="system.level" value="{{system.level}}" min="1" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Race <input type="text" name="system.details.race" value="{{system.details.race}}" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Class <input type="text" name="system.details.className" value="{{system.details.className}}" {{#unless editable}}disabled{{/unless}}></label>
+    </div>
+    <div class="crawl-ident-row">
+      <label>Background <input type="text" name="system.details.background" value="{{system.details.background}}" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Sponsor <input type="text" name="system.details.sponsor" value="{{system.details.sponsor}}" {{#unless editable}}disabled{{/unless}}></label>
+    </div>
+  </div>
+</header>
+
+<section class="crawl-attributes">
+  {{#each attributes}}
+  <div class="crawl-attr">
+    <button type="button" class="crawl-attr-roll" data-action="rollAttribute" data-key="{{this.key}}" title="Roll {{this.label}}">
+      <span class="crawl-attr-abbr">{{this.abbr}}</span>
+      <span class="crawl-attr-total">{{crSign this.total}}</span>
+    </button>
+    <div class="crawl-attr-inputs">
+      <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="Base" {{#unless ../editable}}disabled{{/unless}}>
+      <input type="number" name="system.attributes.{{this.key}}.bonus" value="{{this.bonus}}" title="Bonus from race, class, elixirs" {{#unless ../editable}}disabled{{/unless}}>
+    </div>
+    <span class="crawl-attr-label">{{this.label}}</span>
+  </div>
+  {{/each}}
+</section>
+
+<section class="crawl-vitals">
+  <div class="crawl-bar crawl-bar-hp">
+    <span class="crawl-bar-label">Hit Points</span>
+    <div class="crawl-bar-track"><div class="crawl-bar-fill" style="width: {{hpPct}}%"></div></div>
+    <div class="crawl-bar-values">
+      <input type="number" name="system.hp.value" value="{{system.hp.value}}" {{#unless editable}}disabled{{/unless}}>
+      <span>/ {{system.hp.max}}</span>
+    </div>
+  </div>
+
+  <div class="crawl-bar crawl-bar-mana">
+    <span class="crawl-bar-label">Mana</span>
+    <div class="crawl-bar-track"><div class="crawl-bar-fill" style="width: {{manaPct}}%"></div></div>
+    <div class="crawl-bar-values">
+      <input type="number" name="system.mana.value" value="{{system.mana.value}}" {{#unless editable}}disabled{{/unless}}>
+      <span>/ {{system.mana.max}}</span>
+    </div>
+  </div>
+
+  <div class="crawl-stat-grid crawl-stat-grid-2">
+    <div class="crawl-stat"><span>Defense</span><strong>{{system.defense.value}}</strong></div>
+    <div class="crawl-stat"><span>Gold</span>
+      <input type="number" name="system.gold" value="{{system.gold}}" {{#unless editable}}disabled{{/unless}}></div>
+  </div>
+</section>
+
+<nav class="crawl-tabs">
+  {{#each tabs}}
+  <button type="button" class="crawl-tab-btn {{#if (crEq this.id ../tab)}}active{{/if}}" data-action="showTab" data-tab="{{this.id}}">{{this.label}}</button>
+  {{/each}}
+</nav>
+
+<section class="crawl-body">
+
+  {{#if (crEq tab "skills")}}
+  <div class="crawl-list-head">
+    <span>Skill</span><span>Attr</span><span>Rank</span><span>Floor</span><span>Total</span><span></span>
+  </div>
+  <ol class="crawl-list">
+    {{#each skills}}
+    <li class="crawl-row draggable" data-item-id="{{this.id}}">
+      <button type="button" class="crawl-row-name" data-action="rollSkill">{{this.name}}</button>
+      <span class="crawl-mono">{{crUpper this.attribute}}</span>
+      <span class="crawl-rank">
+        <button type="button" data-action="adjustRank" data-delta="-1" {{#unless ../editable}}disabled{{/unless}}>−</button>
+        <span class="crawl-mono">{{this.rank}}</span>
+        <button type="button" data-action="adjustRank" data-delta="1" {{#unless ../editable}}disabled{{/unless}}>+</button>
+      </span>
+      <input class="crawl-mono crawl-tiny" type="number" data-item-id="{{this.id}}" data-field="system.floorBonus" data-dtype="Number" value="{{this.floorBonus}}" title="Temporary situational bonus" {{#unless ../editable}}disabled{{/unless}}>
+      <span class="crawl-mono crawl-total">{{crSign this.total}}</span>
+      <span class="crawl-row-controls">
+        <button type="button" data-action="editItem" title="Edit"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem" title="Delete"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No skills yet. Add the standard list to get going.</li>
+    {{/each}}
+  </ol>
+  <div class="crawl-list-foot">
+    <button type="button" data-action="seedSkills">Add standard skills</button>
+    <button type="button" data-action="createItem" data-type="skill">New skill</button>
+  </div>
+  {{/if}}
+
+  {{#if (crEq tab "gear")}}
+  <h3 class="crawl-subhead">Weapons</h3>
+  <ol class="crawl-list">
+    {{#each weapons}}
+    <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
+      <button type="button" class="crawl-row-name" data-action="rollAttack" title="Attack with {{this.name}}">{{this.name}}</button>
+      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
+      <span class="crawl-muted">{{this.skill}}</span>
+      <span class="crawl-row-controls">
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{/each}}
+  </ol>
+
+  <h3 class="crawl-subhead">Carried</h3>
+  <ol class="crawl-list">
+    {{#each otherGear}}
+    <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
+      <span class="crawl-row-name">{{this.name}}</span>
+      <span class="crawl-mono">×{{this.quantity}}</span>
+      <span class="crawl-muted">{{this.kindLabel}}</span>
+      <span class="crawl-row-controls">
+        {{#if (crEq this.kind "armour")}}
+        <button type="button" data-action="toggleEquip" title="Equip">
+          <i class="fa-solid {{#if this.equipped}}fa-shield-halved{{else}}fa-shield{{/if}}"></i>
+        </button>
+        {{/if}}
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">Nothing but the pyjamas you died in.</li>
+    {{/each}}
+  </ol>
+  <div class="crawl-list-foot">
+    <button type="button" data-action="createItem" data-type="gear">New gear</button>
+  </div>
+  {{/if}}
+
+  {{#if (crEq tab "abilities")}}
+  <ol class="crawl-list">
+    {{#each abilities}}
+    <li class="crawl-row draggable" data-item-id="{{this.id}}">
+      <span class="crawl-row-name">{{this.name}}</span>
+      <span class="crawl-kind">{{this.kindLabel}}</span>
+      <span class="crawl-row-controls">
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No class abilities, racial traits, achievements or sponsorships yet.</li>
+    {{/each}}
+  </ol>
+  <div class="crawl-list-foot">
+    <button type="button" data-action="createItem" data-type="ability">New ability</button>
+  </div>
+  {{/if}}
+
+  {{#if (crEq tab "notes")}}
+  <div class="crawl-notes">
+    <label class="crawl-notes-label">Who were you before the world ended?</label>
+    <textarea name="system.details.biography" rows="14" {{#unless editable}}disabled{{/unless}}>{{system.details.biography}}</textarea>
+  </div>
+  {{/if}}
+
+</section>
+</div>

@@ -1,0 +1,7 @@
+{
+  "TYPES.Actor.crawler": "Crawler",
+  "TYPES.Actor.mob": "Mob",
+  "TYPES.Item.skill": "Skill",
+  "TYPES.Item.gear": "Gear",
+  "TYPES.Item.ability": "Ability"
+}

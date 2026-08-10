@@ -1,0 +1,19 @@
+<div class="crawl-card crawl-damage {{#if crit}}is-crit{{/if}}">
+  <header class="crawl-card-head">
+    <span class="crawl-tab">{{actorName}}</span>
+    <h4>{{label}}</h4>
+  </header>
+
+  <div class="crawl-card-result" title="{{formula}}">
+    <span class="crawl-card-total">{{total}}</span>
+    <span class="crawl-card-detail">damage</span>
+  </div>
+
+  <div class="crawl-card-apply">Apply to selected token(s)</div>
+  <div class="crawl-card-buttons">
+    <button type="button" data-crawl-action="applyDamage" data-amount="{{total}}" data-multiplier="1" title="Full damage to selected tokens">Damage</button>
+    <button type="button" data-crawl-action="applyDamage" data-amount="{{total}}" data-multiplier="0.5" title="Half damage to selected tokens">½ Damage</button>
+    <button type="button" data-crawl-action="applyDamage" data-amount="{{total}}" data-multiplier="2" title="Double damage to selected tokens">×2</button>
+    <button type="button" data-crawl-action="applyDamage" data-amount="{{total}}" data-multiplier="-1" title="Heal selected tokens by this amount">Heal</button>
+  </div>
+</div>

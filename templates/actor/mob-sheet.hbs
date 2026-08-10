@@ -1,0 +1,36 @@
+<div class="crawl-sheet-body">
+<header class="crawl-head crawl-head-mob">
+  <img class="crawl-portrait" src="{{actor.img}}" data-edit="img" alt="{{actor.name}}">
+  <div class="crawl-ident">
+    <input class="crawl-name" type="text" name="name" value="{{actor.name}}" {{#unless editable}}disabled{{/unless}}>
+    <div class="crawl-ident-row">
+      <label>Level <input type="number" name="system.level" value="{{system.level}}" {{#unless editable}}disabled{{/unless}}></label>
+      <label class="crawl-check">Elite
+        <input type="checkbox" name="system.elite" {{checked system.elite}} {{#unless editable}}disabled{{/unless}}>
+      </label>
+    </div>
+  </div>
+</header>
+
+<section class="crawl-mob-grid">
+  <label>HP
+    <span class="crawl-pair">
+      <input type="number" name="system.hp.value" value="{{system.hp.value}}" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.hp.max" value="{{system.hp.max}}" {{#unless editable}}disabled{{/unless}}>
+    </span>
+  </label>
+  <label>Defense <input type="number" name="system.defense" value="{{system.defense}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Attack <input type="number" name="system.attack" value="{{system.attack}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" {{#unless editable}}disabled{{/unless}}></label>
+</section>
+
+<section class="crawl-actions">
+  <button type="button" data-action="rollAttack">Attack</button>
+  <button type="button" data-action="rollDamage">Damage</button>
+</section>
+
+<section class="crawl-mob-traits">
+  <label class="crawl-notes-label">Traits</label>
+  <textarea name="system.traits" rows="8" {{#unless editable}}disabled{{/unless}}>{{system.traits}}</textarea>
+</section>
+</div>

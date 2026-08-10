@@ -1,0 +1,36 @@
+{
+  "id": "crawler-d20",
+  "title": "CRAWL — World Dungeon d20",
+  "description": "An unofficial d20 system for televised dungeon crawling. Attributes drive skills, the audience drives everything else.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14",
+    "maximum": "14"
+  },
+  "authors": [
+    { "name": "Dave Moreland" }
+  ],
+  "esmodules": ["module/crawler.mjs"],
+  "styles": ["css/crawler.css"],
+  "languages": [
+    { "lang": "en", "name": "English", "path": "lang/en.json" }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "crawler": { "htmlFields": ["details.biography"] },
+      "mob": { "htmlFields": ["traits"] }
+    },
+    "Item": {
+      "skill": { "htmlFields": ["description"] },
+      "gear": { "htmlFields": ["description"] },
+      "ability": { "htmlFields": ["description"] }
+    }
+  },
+  "primaryTokenAttribute": "hp",
+  "grid": { "distance": 5, "units": "ft" },
+  "background": "",
+  "url": "https://example.invalid/crawler-d20",
+  "manifest": "https://example.invalid/crawler-d20/system.json",
+  "download": "https://example.invalid/crawler-d20/crawler-d20.zip"
+}

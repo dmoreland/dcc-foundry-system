@@ -1,0 +1,55 @@
+<div class="crawl-sheet-body">
+<header class="crawl-head crawl-head-item">
+  <img class="crawl-portrait crawl-portrait-sm" src="{{item.img}}" data-edit="img" alt="{{item.name}}">
+  <input class="crawl-name" type="text" name="name" value="{{item.name}}" {{#unless editable}}disabled{{/unless}}>
+</header>
+
+<section class="crawl-item-grid">
+
+  {{#if isSkill}}
+  <label>Attribute
+    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.attributes system.attribute}}
+    </select>
+  </label>
+  <label>Rank <input type="number" name="system.rank" value="{{system.rank}}" min="0" max="5" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Floor bonus <input type="number" name="system.floorBonus" value="{{system.floorBonus}}" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+
+  {{#if isGear}}
+  <label>Kind
+    <select name="system.kind" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.gearKinds system.kind}}
+    </select>
+  </label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage attribute
+    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
+      <option value="none"{{#if (crEq system.attribute "none")}} selected{{/if}}>None</option>
+      {{crOptions config.attributes system.attribute}}
+    </select>
+  </label>
+  <label>Attack skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Blades" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Armour bonus <input type="number" name="system.armour" value="{{system.armour}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Quantity <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" {{#unless editable}}disabled{{/unless}}></label>
+  <label class="crawl-check">Equipped
+    <input type="checkbox" name="system.equipped" {{checked system.equipped}} {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{/if}}
+
+  {{#if isAbility}}
+  <label>Kind
+    <select name="system.kind" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.abilityKinds system.kind}}
+    </select>
+  </label>
+  <label>Cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Mana or Fan Point cost, if any" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+
+</section>
+
+<section class="crawl-item-desc">
+  <label class="crawl-notes-label">Description</label>
+  <textarea name="system.description" rows="10" {{#unless editable}}disabled{{/unless}}>{{system.description}}</textarea>
+</section>
+</div>
