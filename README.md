@@ -9,6 +9,18 @@ sheets — no `template.json`.
 
 ## Install
 
+**Via manifest URL (recommended)**
+
+1. In Foundry's **Setup → Game Systems** tab, click **Install System**.
+2. Paste this manifest URL:
+   `https://raw.githubusercontent.com/dmoreland/dcc-foundry-system/main/system.json`
+3. Click **Install**.
+
+This requires at least one [GitHub release](https://github.com/dmoreland/dcc-foundry-system/releases)
+to exist (pushing a `vX.Y.Z` tag builds one automatically via GitHub Actions).
+
+**Manual**
+
 1. Unzip into your Foundry data directory: `Data/systems/crawler-d20/`
    (Find it via **Configuration → User Data Path**.)
 2. Restart Foundry.

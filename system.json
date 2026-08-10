@@ -30,7 +30,7 @@
   "primaryTokenAttribute": "hp",
   "grid": { "distance": 5, "units": "ft" },
   "background": "",
-  "url": "https://example.invalid/crawler-d20",
-  "manifest": "https://example.invalid/crawler-d20/system.json",
-  "download": "https://example.invalid/crawler-d20/crawler-d20.zip"
+  "url": "https://github.com/dmoreland/dcc-foundry-system",
+  "manifest": "https://raw.githubusercontent.com/dmoreland/dcc-foundry-system/main/system.json",
+  "download": "https://github.com/dmoreland/dcc-foundry-system/releases/latest/download/crawler-d20.zip"
 }

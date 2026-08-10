@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip system
+        run: |
+          zip -r crawler-d20.zip system.json module css lang templates LICENSE README.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            crawler-d20.zip
+            system.json
+          generate_release_notes: true
