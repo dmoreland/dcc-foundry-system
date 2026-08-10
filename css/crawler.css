@@ -30,6 +30,13 @@
   gap: 10px;
 }
 
+/* Crawler sheet: keep the header/attributes fixed and let only the tab body scroll.
+   Every ancestor of the scroll region needs a bounded height (min-height: 0 on the
+   flex items) or the whole sheet grows instead of scrolling. */
+.crawl.crawler .window-content { display: flex; flex-direction: column; overflow: hidden; }
+.crawl.crawler .crawl-sheet-body { flex: 1 1 auto; min-height: 0; }
+.crawl.crawler .crawl-body { flex: 1 1 auto; min-height: 0; }
+
 .crawl input,
 .crawl select,
 .crawl textarea {
