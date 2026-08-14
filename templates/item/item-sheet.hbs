@@ -14,6 +14,11 @@
   </label>
   <label>Rank <input type="number" name="system.rank" value="{{system.rank}}" min="0" max="5" {{#unless editable}}disabled{{/unless}}></label>
   <label>Floor bonus <input type="number" name="system.floorBonus" value="{{system.floorBonus}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Check type
+    <select name="system.checkType" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.skillCheckTypes system.checkType}}
+    </select>
+  </label>
   {{/if}}
 
   {{#if isGear}}
@@ -22,7 +27,18 @@
       {{crOptions config.gearKinds system.kind}}
     </select>
   </label>
+  <label>Slot
+    <select name="system.slot" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.gearSlots system.slot}}
+    </select>
+  </label>
   <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage type
+    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
+      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
+      {{crOptions config.damageTypes system.damageType}}
+    </select>
+  </label>
   <label>Damage attribute
     <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
       <option value="none"{{#if (crEq system.attribute "none")}} selected{{/if}}>None</option>
@@ -30,6 +46,8 @@
     </select>
   </label>
   <label>Attack skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Blades" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="5 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
   <label>Armour bonus <input type="number" name="system.armour" value="{{system.armour}}" {{#unless editable}}disabled{{/unless}}></label>
   <label>Quantity <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" {{#unless editable}}disabled{{/unless}}></label>
   <label class="crawl-check">Equipped
@@ -43,13 +61,31 @@
       {{crOptions config.abilityKinds system.kind}}
     </select>
   </label>
-  <label>Cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Mana or Fan Point cost, if any" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d6" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage type
+    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
+      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
+      {{crOptions config.damageTypes system.damageType}}
+    </select>
+  </label>
+  <label>Attribute
+    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.attributes system.attribute}}
+    </select>
+  </label>
+  <label>Linked skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Spellcraft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="30 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Mana cost <input type="number" name="system.manaCost" value="{{system.manaCost}}" min="0" title="Deducted automatically when cast" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Fan Point cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Inert until the Fan Points resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
   {{/if}}
 
 </section>
 
 <section class="crawl-item-desc">
   <label class="crawl-notes-label">Description</label>
-  <textarea name="system.description" rows="10" {{#unless editable}}disabled{{/unless}}>{{system.description}}</textarea>
+  {{> "systems/crawler-d20/templates/partials/richtext.hbs"
+    field="description" path="system.description" rows=10 editable=editable
+    editing=editing.description rendered=rendered.description raw=system.description}}
 </section>
 </div>

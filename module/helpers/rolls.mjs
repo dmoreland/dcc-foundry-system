@@ -1,12 +1,12 @@
 import { SYSTEM_ID, render } from "./compat.mjs";
 
-/** Defense of the first targeted token, or null if nothing is targeted. */
-export function targetDefense() {
+/** Evade of the first targeted token, or null if nothing is targeted. */
+export function targetEvade() {
   const target = game.user.targets.first();
   if (!target) return null;
   const sys = target.actor?.system;
-  if (sys?.defense === undefined) return null;
-  return typeof sys.defense === "object" ? sys.defense.value : sys.defense;
+  if (sys?.evade === undefined) return null;
+  return typeof sys.evade === "object" ? sys.evade.value : sys.evade;
 }
 
 /**

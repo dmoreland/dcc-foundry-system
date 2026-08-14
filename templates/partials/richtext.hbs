@@ -1,0 +1,15 @@
+<div class="crawl-richtext" data-field="{{field}}" data-path="{{path}}">
+  {{#if editing}}
+  <textarea rows="{{rows}}" {{#unless editable}}disabled{{/unless}}>{{raw}}</textarea>
+  <div class="crawl-richtext-actions">
+    <button type="button" data-action="saveText">Save</button>
+  </div>
+  {{else}}
+  <div class="crawl-html-preview">{{{rendered}}}</div>
+  {{#if editable}}
+  <div class="crawl-richtext-actions">
+    <button type="button" data-action="editText">Edit</button>
+  </div>
+  {{/if}}
+  {{/if}}
+</div>

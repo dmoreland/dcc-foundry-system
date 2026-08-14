@@ -50,10 +50,23 @@
     </div>
   </div>
 
-  <div class="crawl-stat-grid crawl-stat-grid-2">
-    <div class="crawl-stat"><span>Defense</span><strong>{{system.defense.value}}</strong></div>
+  <div class="crawl-stat-grid crawl-stat-grid-3">
+    <div class="crawl-stat"><span>Evade</span><strong>{{system.evade.value}}</strong></div>
+    <div class="crawl-stat"><span>Damage Resistance</span><strong>{{system.damageResistance.value}}</strong></div>
     <div class="crawl-stat"><span>Gold</span>
       <input type="number" name="system.gold" value="{{system.gold}}" {{#unless editable}}disabled{{/unless}}></div>
+  </div>
+
+  <div class="crawl-stat-grid crawl-stat-grid-3">
+    <div class="crawl-stat"><span>Move</span>
+      <input type="number" name="system.move" value="{{system.move}}" {{#unless editable}}disabled{{/unless}}></div>
+    <div class="crawl-stat"><span>Step</span>
+      <input type="number" name="system.step" value="{{system.step}}" {{#unless editable}}disabled{{/unless}}></div>
+    <div class="crawl-stat"><span>Size</span>
+      <select name="system.size" {{#unless editable}}disabled{{/unless}}>
+        {{crOptions sizes system.size}}
+      </select>
+    </div>
   </div>
 </section>
 
@@ -66,13 +79,20 @@
 <section class="crawl-body">
 
   {{#if (crEq tab "skills")}}
-  <div class="crawl-list-head">
+  <div class="crawl-list-head crawl-row-skill">
     <span>Skill</span><span>Attr</span><span>Rank</span><span>Floor</span><span>Total</span><span></span>
   </div>
   <ol class="crawl-list">
     {{#each skills}}
-    <li class="crawl-row draggable" data-item-id="{{this.id}}">
-      <button type="button" class="crawl-row-name" data-action="rollSkill">{{this.name}}</button>
+    <li class="crawl-row crawl-row-skill draggable" data-item-id="{{this.id}}">
+      <span class="crawl-row-name-wrap">
+        {{#if this.rollable}}
+        <button type="button" class="crawl-row-name" data-action="rollSkill">{{this.name}}</button>
+        {{else}}
+        <span class="crawl-row-name crawl-row-name-static">{{this.name}}</span>
+        {{/if}}
+        <span class="crawl-check-badge">{{this.checkTypeLabel}}</span>
+      </span>
       <span class="crawl-mono">{{crUpper this.attribute}}</span>
       <span class="crawl-rank">
         <button type="button" data-action="adjustRank" data-delta="-1" {{#unless ../editable}}disabled{{/unless}}>−</button>
@@ -82,6 +102,11 @@
       <input class="crawl-mono crawl-tiny" type="number" data-item-id="{{this.id}}" data-field="system.floorBonus" data-dtype="Number" value="{{this.floorBonus}}" title="Temporary situational bonus" {{#unless ../editable}}disabled{{/unless}}>
       <span class="crawl-mono crawl-total">{{crSign this.total}}</span>
       <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
         <button type="button" data-action="editItem" title="Edit"><i class="fa-solid fa-pen"></i></button>
         <button type="button" data-action="deleteItem" title="Delete"><i class="fa-solid fa-trash"></i></button>
       </span>
@@ -97,14 +122,38 @@
   {{/if}}
 
   {{#if (crEq tab "gear")}}
+  <h3 class="crawl-subhead">Gear Slots</h3>
+  <div class="crawl-gear-slots">
+    {{#each gearSlots}}
+    <div class="crawl-gear-slot">
+      <span class="crawl-gear-slot-label">{{this.label}}</span>
+      <span class="crawl-gear-slot-item">{{#if this.item}}{{this.item.name}}{{else}}—{{/if}}</span>
+    </div>
+    {{/each}}
+    <div class="crawl-gear-slot">
+      <span class="crawl-gear-slot-label">Accessories ({{accessories.length}}/10)</span>
+      <span class="crawl-gear-slot-item">
+        {{#each accessories}}{{this.name}}{{#unless @last}}, {{/unless}}{{else}}—{{/each}}
+      </span>
+    </div>
+  </div>
+
   <h3 class="crawl-subhead">Weapons</h3>
   <ol class="crawl-list">
     {{#each weapons}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
       <button type="button" class="crawl-row-name" data-action="rollAttack" title="Attack with {{this.name}}">{{this.name}}</button>
       <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
-      <span class="crawl-muted">{{this.skill}}</span>
+      <span class="crawl-muted">{{this.skill}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}</span>
       <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">
+          <i class="fa-solid {{#if this.equipped}}fa-hand-fist{{else}}fa-hand{{/if}}"></i>
+        </button>
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
         <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
         <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
       </span>
@@ -120,9 +169,14 @@
       <span class="crawl-mono">×{{this.quantity}}</span>
       <span class="crawl-muted">{{this.kindLabel}}</span>
       <span class="crawl-row-controls">
-        {{#if (crEq this.kind "armour")}}
-        <button type="button" data-action="toggleEquip" title="Equip">
+        {{#if ../editable}}
+        {{#unless (crEq this.slot "none")}}
+        <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">
           <i class="fa-solid {{#if this.equipped}}fa-shield-halved{{else}}fa-shield{{/if}}"></i>
+        </button>
+        {{/unless}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
         </button>
         {{/if}}
         <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
@@ -139,12 +193,40 @@
   {{/if}}
 
   {{#if (crEq tab "abilities")}}
+  <h3 class="crawl-subhead">Spells</h3>
   <ol class="crawl-list">
-    {{#each abilities}}
-    <li class="crawl-row draggable" data-item-id="{{this.id}}">
+    {{#each spells}}
+    <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
+      <button type="button" class="crawl-row-name" data-action="castAbility" title="Cast {{this.name}}">{{this.name}}</button>
+      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
+      <span class="crawl-muted">{{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}</span>
+      <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No spells yet.</li>
+    {{/each}}
+  </ol>
+
+  <h3 class="crawl-subhead">Other</h3>
+  <ol class="crawl-list">
+    {{#each otherAbilities}}
+    <li class="crawl-row crawl-row-ability draggable" data-item-id="{{this.id}}">
       <span class="crawl-row-name">{{this.name}}</span>
       <span class="crawl-kind">{{this.kindLabel}}</span>
       <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
         <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
         <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
       </span>
@@ -158,10 +240,44 @@
   </div>
   {{/if}}
 
+  {{#if (crEq tab "hotlist")}}
+  <ol class="crawl-list">
+    {{#each hotlist}}
+    <li class="crawl-row crawl-row-hotlist draggable" data-item-id="{{this.id}}">
+      <img class="crawl-hotlist-icon" src="{{this.img}}" alt="{{this.name}}">
+      <button type="button" class="crawl-row-name" data-action="rollHotlist" title="Roll {{this.name}}">{{this.name}}</button>
+      <span class="crawl-muted">{{this.sub}}</span>
+      <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="unpinItem" title="Unpin"><i class="fa-solid fa-star"></i></button>
+        {{/if}}
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">Nothing pinned yet. Use the star icon on a skill, weapon or spell to add it here.</li>
+    {{/each}}
+  </ol>
+  {{/if}}
+
+  {{#if (crEq tab "effects")}}
+  {{> "systems/crawler-d20/templates/partials/effects-list.hbs" effects=effects editable=editable}}
+  {{/if}}
+
   {{#if (crEq tab "notes")}}
   <div class="crawl-notes">
     <label class="crawl-notes-label">Who were you before the world ended?</label>
-    <textarea name="system.details.biography" rows="14" {{#unless editable}}disabled{{/unless}}>{{system.details.biography}}</textarea>
+    {{> "systems/crawler-d20/templates/partials/richtext.hbs"
+      field="biography" path="system.details.biography" rows=14 editable=editable
+      editing=editing.biography rendered=rendered.biography raw=system.details.biography}}
+  </div>
+  {{/if}}
+
+  {{#if (crEq tab "gm")}}
+  <div class="crawl-notes crawl-gm-notes">
+    <label class="crawl-notes-label">Visible to the GM only</label>
+    {{> "systems/crawler-d20/templates/partials/richtext.hbs"
+      field="gmNotes" path="system.gmNotes" rows=14 editable=editable
+      editing=editing.gmNotes rendered=rendered.gmNotes raw=system.gmNotes}}
   </div>
   {{/if}}
 

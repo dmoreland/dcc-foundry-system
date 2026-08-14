@@ -1,0 +1,34 @@
+<section class="crawl-effects">
+  <p class="crawl-hint">
+    Effects modify a base value (e.g. <code>system.attributes.dex.bonus</code>), not a derived
+    total (e.g. <code>system.evade.value</code>) — derived totals get recalculated every render
+    and would overwrite the change.
+  </p>
+  <ul class="crawl-list">
+    {{#each effects}}
+    <li class="crawl-row crawl-row-effect {{#if this.disabled}}crawl-effect-disabled{{/if}}" data-effect-id="{{this.id}}">
+      <img class="crawl-effect-icon" src="{{this.img}}" alt="{{this.name}}">
+      <span class="crawl-row-name">{{this.name}}</span>
+      <span class="crawl-muted">{{this.duration}}</span>
+      <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="toggleEffect" title="{{#if this.disabled}}Enable{{else}}Disable{{/if}}">
+          <i class="fa-solid {{#if this.disabled}}fa-toggle-off{{else}}fa-toggle-on{{/if}}"></i>
+        </button>
+        {{/if}}
+        <button type="button" data-action="editEffect" title="Edit"><i class="fa-solid fa-pen"></i></button>
+        {{#if ../editable}}
+        <button type="button" data-action="deleteEffect" title="Delete"><i class="fa-solid fa-trash"></i></button>
+        {{/if}}
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No active effects.</li>
+    {{/each}}
+  </ul>
+  {{#if editable}}
+  <div class="crawl-list-foot">
+    <button type="button" data-action="createEffect">New effect</button>
+  </div>
+  {{/if}}
+</section>

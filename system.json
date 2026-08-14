@@ -2,7 +2,7 @@
   "id": "crawler-d20",
   "title": "CRAWL — World Dungeon d20",
   "description": "An unofficial d20 system for televised dungeon crawling. Attributes drive skills, the audience drives everything else.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "compatibility": {
     "minimum": "13",
     "verified": "14",
@@ -18,8 +18,8 @@
   ],
   "documentTypes": {
     "Actor": {
-      "crawler": { "htmlFields": ["details.biography"] },
-      "mob": { "htmlFields": ["traits"] }
+      "crawler": { "htmlFields": ["details.biography", "gmNotes"] },
+      "mob": { "htmlFields": ["traits", "gmNotes"] }
     },
     "Item": {
       "skill": { "htmlFields": ["description"] },
