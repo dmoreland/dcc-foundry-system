@@ -19,18 +19,61 @@
       <input type="number" name="system.hp.max" value="{{system.hp.max}}" {{#unless editable}}disabled{{/unless}}>
     </span>
   </label>
-  <label>Defense <input type="number" name="system.defense" value="{{system.defense}}" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Attack <input type="number" name="system.attack" value="{{system.attack}}" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Evade <input type="number" name="system.evade" value="{{system.evade}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage Resistance <input type="number" name="system.damageResistance" value="{{system.damageResistance}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Move <input type="number" name="system.move" value="{{system.move}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Step <input type="number" name="system.step" value="{{system.step}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Size
+    <select name="system.size" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.sizes system.size}}
+    </select>
+  </label>
 </section>
 
-<section class="crawl-actions">
-  <button type="button" data-action="rollAttack">Attack</button>
-  <button type="button" data-action="rollDamage">Damage</button>
+<section class="crawl-mob-attacks">
+  <label class="crawl-notes-label">Attacks</label>
+  <ul class="crawl-list">
+    <li class="crawl-row crawl-row-attack crawl-list-head">
+      <span>Name</span><span>Mod</span><span>Damage</span><span></span>
+    </li>
+    {{#each system.attacks as |atk index|}}
+    <li class="crawl-row crawl-row-attack" data-index="{{index}}">
+      <input class="crawl-row-name" type="text" name="system.attacks.{{index}}.name" value="{{atk.name}}" {{#unless ../editable}}disabled{{/unless}}>
+      <input class="crawl-tiny" type="number" name="system.attacks.{{index}}.attack" value="{{atk.attack}}" {{#unless ../editable}}disabled{{/unless}}>
+      <input class="crawl-tiny" type="text" name="system.attacks.{{index}}.damage" value="{{atk.damage}}" {{#unless ../editable}}disabled{{/unless}}>
+      <span class="crawl-row-controls">
+        <button type="button" data-action="rollAttack" title="Roll Attack"><i class="fa-solid fa-dice-d20"></i></button>
+        <button type="button" data-action="rollDamage" title="Roll Damage"><i class="fa-solid fa-dice"></i></button>
+        {{#if ../editable}}<button type="button" data-action="removeAttack" title="Remove"><i class="fa-solid fa-trash"></i></button>{{/if}}
+      </span>
+    </li>
+    {{/each}}
+  </ul>
+  {{#if editable}}
+  <div class="crawl-list-foot">
+    <button type="button" data-action="addAttack">Add Attack</button>
+  </div>
+  {{/if}}
 </section>
 
 <section class="crawl-mob-traits">
   <label class="crawl-notes-label">Traits</label>
-  <textarea name="system.traits" rows="8" {{#unless editable}}disabled{{/unless}}>{{system.traits}}</textarea>
+  {{> "systems/crawler-d20/templates/partials/richtext.hbs"
+    field="traits" path="system.traits" rows=8 editable=editable
+    editing=editing.traits rendered=rendered.traits raw=system.traits}}
+</section>
+
+{{#if isGM}}
+<section class="crawl-mob-traits crawl-gm-notes">
+  <label class="crawl-notes-label">GM Notes</label>
+  {{> "systems/crawler-d20/templates/partials/richtext.hbs"
+    field="gmNotes" path="system.gmNotes" rows=6 editable=editable
+    editing=editing.gmNotes rendered=rendered.gmNotes raw=system.gmNotes}}
+</section>
+{{/if}}
+
+<section class="crawl-mob-traits">
+  <label class="crawl-notes-label">Effects</label>
+  {{> "systems/crawler-d20/templates/partials/effects-list.hbs" effects=effects editable=editable}}
 </section>
 </div>

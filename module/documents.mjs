@@ -3,6 +3,8 @@ import * as Dice from "./helpers/rolls.mjs";
 
 export class CrawlerActor extends Actor {
 
+  static HOTLIST_MAX = 10;
+
   /** Merge system roll data so formulas can use @str, @level and friends. */
   getRollData() {
     const data = { ...super.getRollData() };
@@ -38,6 +40,9 @@ export class CrawlerActor extends Actor {
   async rollSkill(skillId, { dc = null } = {}) {
     const skill = this.items.get(skillId);
     if (!skill) return;
+    if (skill.system.checkType === "passive") {
+      return ui.notifications.warn(`${skill.name} is a passive skill and can't be rolled.`);
+    }
     const attrLabel = CRAWLER.attributes[skill.system.attribute];
     return Dice.rollCheck({
       actor: this,
@@ -47,7 +52,7 @@ export class CrawlerActor extends Actor {
     });
   }
 
-  /** Attack with a gear item. Uses a targeted token's Defense as the DC if one is picked. */
+  /** Attack with a gear item. Uses a targeted token's Evade as the DC if one is picked. */
   async rollAttack(itemId) {
     const item = this.items.get(itemId);
     if (!item) return;
@@ -60,7 +65,34 @@ export class CrawlerActor extends Actor {
       actor: this,
       label: `Attack — ${item.name}`,
       mod: attrMod + rank,
-      dc: Dice.targetDefense(),
+      dc: Dice.targetEvade(),
+      itemId: item.id,
+      showDamage: true
+    });
+  }
+
+  /** Cast a spell ability. Checks and deducts Mana before rolling; blocks the cast if short. */
+  async castAbility(itemId) {
+    const item = this.items.get(itemId);
+    if (!item) return;
+    const manaCost = item.system.manaCost ?? 0;
+    const mana = this.system.mana;
+    if (mana && manaCost > mana.value) {
+      return ui.notifications.warn(`Not enough Mana to cast ${item.name} (needs ${manaCost}, has ${mana.value}).`);
+    }
+
+    const attrKey = item.system.attribute;
+    const attrMod = this.system.attributes?.[attrKey]?.total ?? 0;
+    const skill = this.items.find(i => i.type === "skill" && i.name === item.system.skill);
+    const rank = skill ? skill.system.rank + skill.system.floorBonus : 0;
+
+    if (manaCost) await this.update({ "system.mana.value": mana.value - manaCost });
+
+    return Dice.rollCheck({
+      actor: this,
+      label: `Cast — ${item.name}`,
+      mod: attrMod + rank,
+      dc: Dice.targetEvade(),
       itemId: item.id,
       showDamage: true
     });
@@ -76,8 +108,15 @@ export class CrawlerActor extends Actor {
     const hp = this.system.hp;
     if (!hp) return null;
 
-    const delta = Math.floor(Number(amount) * Number(multiplier));
+    let delta = Math.floor(Number(amount) * Number(multiplier));
     const before = hp.value;
+
+    // Damage Resistance reduces incoming damage (never healing) before anything else.
+    if (delta > 0) {
+      const dr = this.system.damageResistance;
+      const drValue = typeof dr === "object" ? (dr?.value ?? 0) : (dr ?? 0);
+      delta = Math.max(0, delta - drValue);
+    }
     if (!delta) return { name: this.name, before, after: before, delta: 0 };
 
     const updates = {};
@@ -94,6 +133,90 @@ export class CrawlerActor extends Actor {
     updates["system.hp.value"] = after;
     await this.update(updates);
     return { name: this.name, before, after, delta };
+  }
+
+  /** Roll one of a mob's attacks (index into system.attacks) against the targeted token's Evade. */
+  async rollMobAttack(index) {
+    const atk = this.system.attacks?.[index];
+    if (!atk) return;
+    return Dice.rollCheck({
+      actor: this,
+      label: `Attack — ${atk.name}`,
+      mod: atk.attack,
+      dc: Dice.targetEvade()
+    });
+  }
+
+  /** Roll damage for one of a mob's attacks. */
+  async rollMobDamage(index) {
+    const atk = this.system.attacks?.[index];
+    if (!atk) return;
+    const roll = await new Roll(atk.damage || "1d6").evaluate();
+    return Dice.postDamageCard({ actor: this, label: `Damage — ${atk.name}`, roll });
+  }
+
+  /** Add a blank attack entry to a mob. */
+  async addAttack() {
+    const attacks = [...(this.system.attacks ?? []), { name: "Attack", attack: 3, damage: "1d6" }];
+    return this.update({ "system.attacks": attacks });
+  }
+
+  /** Remove an attack entry from a mob by index. */
+  async removeAttack(index) {
+    const attacks = (this.system.attacks ?? []).filter((_, i) => i !== index);
+    return this.update({ "system.attacks": attacks });
+  }
+
+  /**
+   * Toggle a gear item's equipped state, enforcing one-item-per-slot exclusivity
+   * (equipping into an occupied head/torso/arms/hands/legs/feet slot bumps the current
+   * occupant) and a 10-item cap on the accessory slot. Items with slot "none" just toggle.
+   */
+  async equipGear(itemId) {
+    const item = this.items.get(itemId);
+    if (!item) return;
+    const slot = item.system.slot;
+    const equipping = !item.system.equipped;
+
+    if (equipping && slot && slot !== "none") {
+      const occupants = this.items.filter(i =>
+        i.type === "gear" && i.id !== itemId && i.system.slot === slot && i.system.equipped);
+
+      if (slot === "accessory") {
+        if (occupants.length >= 10) {
+          return ui.notifications.warn("All 10 accessory slots are full.");
+        }
+      } else if (occupants.length) {
+        await this.updateEmbeddedDocuments("Item", occupants.map(o => ({ _id: o.id, "system.equipped": false })));
+      }
+    }
+
+    return item.update({ "system.equipped": equipping });
+  }
+
+  /** Pin an item to the Hotlist, up to CrawlerActor.HOTLIST_MAX entries. */
+  async addToHotlist(itemId) {
+    const hotlist = this.system.hotlist ?? [];
+    if (hotlist.includes(itemId)) return;
+    if (hotlist.length >= CrawlerActor.HOTLIST_MAX) {
+      return ui.notifications.warn(`The Hotlist is full (max ${CrawlerActor.HOTLIST_MAX}).`);
+    }
+    return this.update({ "system.hotlist": [...hotlist, itemId] });
+  }
+
+  /** Unpin an item from the Hotlist. */
+  async removeFromHotlist(itemId) {
+    const hotlist = this.system.hotlist ?? [];
+    return this.update({ "system.hotlist": hotlist.filter(id => id !== itemId) });
+  }
+
+  /** Roll a Hotlist entry, dispatching to the right roll method for its item type. */
+  async rollHotlistEntry(itemId) {
+    const item = this.items.get(itemId);
+    if (!item) return;
+    if (item.type === "skill") return this.rollSkill(itemId);
+    if (item.type === "gear") return this.rollAttack(itemId);
+    if (item.type === "ability") return this.castAbility(itemId);
   }
 
   /** Populate the standard skill list from the rules. Skips anything already present. */

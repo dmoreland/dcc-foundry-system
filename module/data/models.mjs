@@ -35,18 +35,28 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
         max: num(5),
         bonus: num(0)
       }),
-      defense: new fields.SchemaField({
+      evade: new fields.SchemaField({
         bonus: num(0),
         value: num(11)
       }),
+      damageResistance: new fields.SchemaField({
+        bonus: num(0),
+        value: num(0)
+      }),
+      move: num(30, { min: 0 }),
+      step: num(5, { min: 0 }),
+      size: new fields.StringField({ initial: "medium", choices: CRAWLER.sizes }),
       gold: num(0, { min: 0 }),
       caster: new fields.BooleanField({ initial: false }),
+      hotlist: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       details: new fields.SchemaField({
         race: new fields.StringField({ initial: "Unmodified Human" }),
         className: new fields.StringField({ initial: "None (unlocks on Floor 3)" }),
         background: new fields.StringField({ initial: "" }),
+        sponsor: new fields.StringField({ initial: "" }),
         biography: new fields.HTMLField({ initial: "" })
-      })
+      }),
+      gmNotes: new fields.HTMLField({ initial: "" })
     };
   }
 
@@ -65,14 +75,15 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
       if (item.type !== "gear") continue;
       if (item.system.equipped) armour += item.system.armour ?? 0;
     }
-    this.defense.value = 10 + a.dex.total + armour + this.defense.bonus;
+    this.evade.value = 10 + a.dex.total + this.evade.bonus;
+    this.damageResistance.value = armour + this.damageResistance.bonus;
 
     this.hp.value = Math.min(this.hp.value, this.hp.max);
     this.mana.value = Math.min(this.mana.value, this.mana.max);
   }
 
   getRollData() {
-    const data = { level: this.level, defense: this.defense.value };
+    const data = { level: this.level, evade: this.evade.value, damageResistance: this.damageResistance.value };
     for (const [key, attr] of Object.entries(this.attributes)) data[key] = attr.total;
     return data;
   }
@@ -87,16 +98,24 @@ export class MobData extends foundry.abstract.TypeDataModel {
     return {
       level: num(1, { min: 0 }),
       hp: new fields.SchemaField({ value: num(15), max: num(15) }),
-      defense: num(12),
-      attack: num(3),
-      damage: new fields.StringField({ initial: "1d6" }),
+      evade: num(12),
+      damageResistance: num(0),
+      move: num(30, { min: 0 }),
+      step: num(5, { min: 0 }),
+      size: new fields.StringField({ initial: "medium", choices: CRAWLER.sizes }),
+      attacks: new fields.ArrayField(new fields.SchemaField({
+        name: new fields.StringField({ initial: "Attack" }),
+        attack: num(3),
+        damage: new fields.StringField({ initial: "1d6" })
+      }), { initial: [{ name: "Attack", attack: 3, damage: "1d6" }] }),
       elite: new fields.BooleanField({ initial: false }),
-      traits: new fields.HTMLField({ initial: "" })
+      traits: new fields.HTMLField({ initial: "" }),
+      gmNotes: new fields.HTMLField({ initial: "" })
     };
   }
 
   getRollData() {
-    return { level: this.level, attack: this.attack, defense: this.defense };
+    return { level: this.level, attack: this.attacks[0]?.attack ?? 0, evade: this.evade };
   }
 }
 
@@ -113,6 +132,7 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       }),
       rank: num(0, { min: 0, max: 5 }),
       floorBonus: num(0),
+      checkType: new fields.StringField({ initial: "unopposed", choices: CRAWLER.skillCheckTypes }),
       description: new fields.HTMLField({ initial: "" })
     };
   }
@@ -122,9 +142,13 @@ export class GearData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       kind: new fields.StringField({ initial: "weapon", choices: CRAWLER.gearKinds }),
+      slot: new fields.StringField({ initial: "none", choices: CRAWLER.gearSlots }),
       damage: new fields.StringField({ initial: "1d6" }),
+      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
+      range: new fields.StringField({ initial: "5 ft" }),
       attribute: new fields.StringField({ initial: "str" }),
       skill: new fields.StringField({ initial: "Brawl" }),
+      aiFavor: num(0),
       armour: num(0),
       quantity: num(1, { min: 0 }),
       equipped: new fields.BooleanField({ initial: false }),
@@ -138,6 +162,13 @@ export class AbilityData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       kind: new fields.StringField({ initial: "class", choices: CRAWLER.abilityKinds }),
+      damage: new fields.StringField({ initial: "" }),
+      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
+      range: new fields.StringField({ initial: "" }),
+      attribute: new fields.StringField({ initial: "str" }),
+      skill: new fields.StringField({ initial: "" }),
+      manaCost: num(0, { min: 0 }),
+      aiFavor: num(0),
       cost: num(0, { min: 0 }),
       description: new fields.HTMLField({ initial: "" })
     };

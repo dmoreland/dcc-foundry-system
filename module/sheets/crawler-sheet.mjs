@@ -1,7 +1,8 @@
 import { SYSTEM_ID, ActorSheetV2, HandlebarsMixin, enrich } from "../helpers/compat.mjs";
+import { RichTextMixin } from "../helpers/richtext.mjs";
 import { CRAWLER } from "../data/config.mjs";
 
-export class CrawlerSheet extends HandlebarsMixin(ActorSheetV2) {
+export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   tab = "skills";
 
@@ -15,12 +16,20 @@ export class CrawlerSheet extends HandlebarsMixin(ActorSheetV2) {
       rollAttribute: CrawlerSheet._onRollAttribute,
       rollSkill: CrawlerSheet._onRollSkill,
       rollAttack: CrawlerSheet._onRollAttack,
+      castAbility: CrawlerSheet._onCastAbility,
       adjustRank: CrawlerSheet._onAdjustRank,
       toggleEquip: CrawlerSheet._onToggleEquip,
       createItem: CrawlerSheet._onCreateItem,
       editItem: CrawlerSheet._onEditItem,
       deleteItem: CrawlerSheet._onDeleteItem,
-      seedSkills: CrawlerSheet._onSeedSkills
+      seedSkills: CrawlerSheet._onSeedSkills,
+      pinItem: CrawlerSheet._onPinItem,
+      unpinItem: CrawlerSheet._onUnpinItem,
+      rollHotlist: CrawlerSheet._onRollHotlist,
+      createEffect: CrawlerSheet._onCreateEffect,
+      editEffect: CrawlerSheet._onEditEffect,
+      toggleEffect: CrawlerSheet._onToggleEffect,
+      deleteEffect: CrawlerSheet._onDeleteEffect
     }
   };
 
@@ -42,28 +51,66 @@ export class CrawlerSheet extends HandlebarsMixin(ActorSheetV2) {
         attributeLabel: CRAWLER.attributes[skill.system.attribute],
         rank: skill.system.rank,
         floorBonus: skill.system.floorBonus,
-        total: actor.skillModifier(skill)
+        total: actor.skillModifier(skill),
+        checkType: skill.system.checkType,
+        checkTypeLabel: CRAWLER.skillCheckTypes[skill.system.checkType] ?? skill.system.checkType,
+        rollable: skill.system.checkType !== "passive",
+        pinned: (system.hotlist ?? []).includes(skill.id)
       }));
 
     const gear = actor.items.filter(i => i.type === "gear")
       .map(item => ({ id: item.id, name: item.name, img: item.img, ...item.system,
-        kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind }));
+        kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind,
+        slotLabel: CRAWLER.gearSlots[item.system.slot] ?? item.system.slot,
+        damageTypeLabel: CRAWLER.damageTypes[item.system.damageType] ?? "",
+        pinned: (system.hotlist ?? []).includes(item.id) }));
 
     const abilities = actor.items.filter(i => i.type === "ability")
       .map(item => ({ id: item.id, name: item.name, img: item.img, ...item.system,
-        kindLabel: CRAWLER.abilityKinds[item.system.kind] ?? item.system.kind }));
+        kindLabel: CRAWLER.abilityKinds[item.system.kind] ?? item.system.kind,
+        damageTypeLabel: CRAWLER.damageTypes[item.system.damageType] ?? "",
+        pinned: (system.hotlist ?? []).includes(item.id) }));
+
+    // One occupant per exclusive slot (head/torso/arms/hands/legs/feet); accessories stack to 10.
+    const exclusiveSlots = ["head", "torso", "arms", "hands", "legs", "feet"];
+    const gearSlots = exclusiveSlots.map(slot => ({
+      slot, label: CRAWLER.gearSlots[slot],
+      item: gear.find(g => g.slot === slot && g.equipped) ?? null
+    }));
+    const accessories = gear.filter(g => g.slot === "accessory" && g.equipped);
+
+    const hotlist = (system.hotlist ?? [])
+      .map(id => actor.items.get(id))
+      .filter(Boolean)
+      .map(item => ({
+        id: item.id, name: item.name, img: item.img, type: item.type,
+        sub: item.type === "skill" ? CRAWLER.attributes[item.system.attribute]
+          : item.type === "gear" ? `${item.system.damage} + ${item.system.attribute.toUpperCase()}`
+          : item.system.manaCost ? `${item.system.manaCost} Mana` : ""
+      }));
+
+    const effects = actor.effects.map(e => ({
+      id: e.id, name: e.name, img: e.img, disabled: e.disabled,
+      duration: e.duration?.label || "—"
+    }));
+
+    const isGM = game.user.isGM;
 
     return Object.assign(context, {
       actor,
       system,
       config: CRAWLER,
       editable: this.isEditable,
+      isGM,
       tab: this.tab,
       tabs: [
         { id: "skills", label: "Skills" },
         { id: "gear", label: "Gear" },
         { id: "abilities", label: "Abilities" },
-        { id: "notes", label: "Notes" }
+        { id: "hotlist", label: "Hotlist" },
+        { id: "effects", label: "Effects" },
+        { id: "notes", label: "Notes" },
+        ...(isGM ? [{ id: "gm", label: "GM Notes" }] : [])
       ],
       attributes: Object.entries(CRAWLER.attributes).map(([key, label]) => ({
         key, label, abbr: key.toUpperCase(),
@@ -71,13 +118,26 @@ export class CrawlerSheet extends HandlebarsMixin(ActorSheetV2) {
         bonus: system.attributes[key].bonus,
         total: system.attributes[key].total
       })),
+      sizes: CRAWLER.sizes,
       skills,
       weapons: gear.filter(g => g.kind === "weapon"),
       otherGear: gear.filter(g => g.kind !== "weapon"),
-      abilities,
+      gearSlots,
+      accessories,
+      spells: abilities.filter(a => a.kind === "spell"),
+      otherAbilities: abilities.filter(a => a.kind !== "spell"),
+      hotlist,
+      effects,
       hpPct: Math.clamp(Math.round((system.hp.value / Math.max(1, system.hp.max)) * 100), 0, 100),
       manaPct: Math.clamp(Math.round((system.mana.value / Math.max(1, system.mana.max)) * 100), 0, 100),
-      biography: await enrich(system.details.biography, { relativeTo: actor })
+      editing: {
+        biography: this.editingFields.has("biography"),
+        gmNotes: this.editingFields.has("gmNotes")
+      },
+      rendered: {
+        biography: await enrich(system.details.biography, { relativeTo: actor }),
+        gmNotes: isGM ? await enrich(system.gmNotes, { relativeTo: actor }) : ""
+      }
     });
   }
 
@@ -128,8 +188,23 @@ export class CrawlerSheet extends HandlebarsMixin(ActorSheetV2) {
   }
 
   static async _onToggleEquip(event, target) {
-    const item = this.document.items.get(target.closest("[data-item-id]").dataset.itemId);
-    return item?.update({ "system.equipped": !item.system.equipped });
+    return this.document.equipGear(target.closest("[data-item-id]").dataset.itemId);
+  }
+
+  static async _onCastAbility(event, target) {
+    return this.document.castAbility(target.closest("[data-item-id]").dataset.itemId);
+  }
+
+  static async _onPinItem(event, target) {
+    return this.document.addToHotlist(target.closest("[data-item-id]").dataset.itemId);
+  }
+
+  static async _onUnpinItem(event, target) {
+    return this.document.removeFromHotlist(target.closest("[data-item-id]").dataset.itemId);
+  }
+
+  static async _onRollHotlist(event, target) {
+    return this.document.rollHotlistEntry(target.closest("[data-item-id]").dataset.itemId);
   }
 
   static async _onCreateItem(event, target) {
@@ -159,5 +234,32 @@ export class CrawlerSheet extends HandlebarsMixin(ActorSheetV2) {
 
   static async _onSeedSkills() {
     return this.document.seedSkills();
+  }
+
+  static async _onCreateEffect() {
+    const [effect] = await this.document.createEmbeddedDocuments("ActiveEffect", [{
+      name: "New Effect", icon: "icons/svg/aura.svg", disabled: false
+    }]);
+    return effect?.sheet.render(true);
+  }
+
+  static _onEditEffect(event, target) {
+    const effect = this.document.effects.get(target.closest("[data-effect-id]").dataset.effectId);
+    return effect?.sheet.render(true);
+  }
+
+  static async _onToggleEffect(event, target) {
+    const effect = this.document.effects.get(target.closest("[data-effect-id]").dataset.effectId);
+    return effect?.update({ disabled: !effect.disabled });
+  }
+
+  static async _onDeleteEffect(event, target) {
+    const effect = this.document.effects.get(target.closest("[data-effect-id]").dataset.effectId);
+    if (!effect) return;
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "Delete" },
+      content: `<p>Delete <strong>${effect.name}</strong>?</p>`
+    });
+    if (confirmed) await effect.delete();
   }
 }

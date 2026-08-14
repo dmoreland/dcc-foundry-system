@@ -38,6 +38,8 @@ Hooks.once("init", () => {
     `systems/${SYSTEM_ID}/templates/actor/crawler-sheet.hbs`,
     `systems/${SYSTEM_ID}/templates/actor/mob-sheet.hbs`,
     `systems/${SYSTEM_ID}/templates/item/item-sheet.hbs`,
+    `systems/${SYSTEM_ID}/templates/partials/richtext.hbs`,
+    `systems/${SYSTEM_ID}/templates/partials/effects-list.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/check-card.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/damage-card.hbs`
   ]);
