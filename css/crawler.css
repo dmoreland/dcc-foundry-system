@@ -215,7 +215,7 @@
 }
 .crawl-list-head { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--crawl-muted); }
 .crawl-row:nth-child(odd) { background: rgba(255, 255, 255, 0.025); }
-.crawl-row-gear { grid-template-columns: 1fr 110px 90px 100px; }
+.crawl-row-gear { grid-template-columns: 1fr 110px 90px 118px; }
 .crawl-row-attack { grid-template-columns: 1fr 46px 70px 74px; }
 .crawl-row-skill { grid-template-columns: 1fr 42px 78px 46px 46px 74px; }
 .crawl-row-ability { grid-template-columns: 1fr 90px 74px; }
@@ -230,9 +230,9 @@
   font-size: 13px;
 }
 .crawl-row-name:hover:not(:disabled) { background: transparent; color: var(--crawl-brand); }
-.crawl-row-name-static { cursor: default; }
 .crawl-row-name-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .crawl-check-badge { font-size: 8px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--crawl-muted); }
+.crawl-boost-select { display: block; margin-top: 2px; width: auto; max-width: 100%; padding: 1px 3px; font-size: 10px; }
 
 .crawl-rank { display: flex; align-items: center; justify-content: center; gap: 3px; }
 .crawl-rank button { width: 18px; height: 18px; line-height: 1; padding: 0; }
@@ -346,6 +346,9 @@
 
 .crawl-card-head { margin-top: 6px; }
 .crawl-card-head h4 { margin: 0; font-size: 14px; color: #ede6dd; border: none; }
+.crawl-card-flavor { font-size: 12px; font-style: italic; color: #9c8fa8; margin-top: 4px; }
+.crawl-card-flavor p { margin: 0 0 4px; }
+.crawl-card-flavor p:last-child { margin-bottom: 0; }
 .crawl-card-result { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
 .crawl-card-total { font-family: ui-monospace, Menlo, monospace; font-size: 30px; font-weight: 700; line-height: 1; }
 .crawl-card-detail { font-size: 11px; color: #9c8fa8; font-family: ui-monospace, Menlo, monospace; }
@@ -376,6 +379,16 @@
 .crawl-card-buttons button:hover { background: #e0457b; color: #14101a; border-color: #e0457b; }
 
 .crawl-notice { padding-top: 14px; font-size: 13px; }
+
+/* Per-die breakdown on damage cards (Foundry's own dice-tooltip markup, restyled to fit) */
+.crawl-card-tooltip { margin-top: 6px; }
+.crawl-card-tooltip .dice-tooltip { background: transparent; color: #ede6dd; padding: 0; margin: 0; }
+.crawl-card-tooltip .dice-tooltip .tooltip-part { background: #211a28; border: 1px solid #3a2f45; margin: 0 0 4px; padding: 4px 6px; }
+.crawl-card-tooltip .dice-tooltip .part-header { color: #9c8fa8; font-size: 10px; }
+.crawl-card-tooltip .dice-tooltip .dice-rolls { flex-wrap: wrap; }
+.crawl-card-tooltip .dice-tooltip .roll.die { background: #17121c; color: #ede6dd; border: 1px solid #3a2f45; }
+.crawl-card-tooltip .dice-tooltip .roll.die.max { color: #7fd4a8; }
+.crawl-card-tooltip .dice-tooltip .roll.die.min { color: #e0457b; }
 
 /* Damage card apply row */
 .crawl-card-apply {

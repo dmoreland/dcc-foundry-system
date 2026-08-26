@@ -29,14 +29,14 @@ const MOBS = [
 ];
 
 const GEAR = [
-  { name: "Fists", kind: "weapon", slot: "hands", damage: "1d4", attribute: "str", skill: "Brawl" },
-  { name: "Kitchen Knife", kind: "weapon", slot: "hands", damage: "1d6", attribute: "dex", skill: "Blades" },
-  { name: "Fire Axe", kind: "weapon", slot: "hands", damage: "1d8", attribute: "str", skill: "Heavy Weapons" },
-  { name: "Scavenged Maul", kind: "weapon", slot: "hands", damage: "1d12", attribute: "str", skill: "Heavy Weapons" },
-  { name: "Hunting Bow", kind: "weapon", slot: "hands", damage: "1d8", attribute: "dex", skill: "Ranged" },
+  { name: "Fists", kind: "weapon", slot: "hands", skill: "Brawl" },
+  { name: "Kitchen Knife", kind: "weapon", slot: "hands", skill: "Blades" },
+  { name: "Fire Axe", kind: "weapon", slot: "hands", skill: "Heavy Weapons" },
+  { name: "Scavenged Maul", kind: "weapon", slot: "hands", skill: "Heavy Weapons" },
+  { name: "Hunting Bow", kind: "weapon", slot: "hands", skill: "Ranged" },
   { name: "Salvaged Plating", kind: "armour", slot: "torso", armour: 2 },
-  { name: "Healing Potion", kind: "consumable", slot: "none", damage: "3d8", attribute: "none", quantity: 1 },
-  { name: "Smoke Bomb", kind: "consumable", slot: "none", damage: "0", attribute: "none", quantity: 1 }
+  { name: "Healing Potion", kind: "consumable", slot: "none", useDamage: "3d8", quantity: 1 },
+  { name: "Smoke Bomb", kind: "consumable", slot: "none", quantity: 1 }
 ];
 
 export async function seedWorld() {
@@ -65,11 +65,11 @@ export async function seedWorld() {
     system: {
       kind: g.kind,
       slot: g.slot ?? "none",
-      damage: g.damage ?? "",
-      attribute: g.attribute ?? "none",
       skill: g.skill ?? "",
       armour: g.armour ?? 0,
-      quantity: g.quantity ?? 1
+      quantity: g.quantity ?? 1,
+      useDamage: g.useDamage ?? "",
+      useAttribute: g.useAttribute ?? "none"
     }
   }));
   if (gear.length) await Item.createDocuments(gear);

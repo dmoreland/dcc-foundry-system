@@ -1,4 +1,4 @@
-import { SYSTEM_ID, render } from "./compat.mjs";
+import { SYSTEM_ID, render, enrich } from "./compat.mjs";
 import { CRAWLER } from "../data/config.mjs";
 
 /** Evade of a target (defaults to the first user-targeted token), or null if there is none. */
@@ -52,7 +52,8 @@ function signed(mod) {
  */
 export async function rollCheck({
   actor, label, mod = 0, dc = null, itemId = null, mobAttackIndex = null,
-  rank = 0, bonusDamage = 0, showDamage = false, advantage = false, disadvantage = false
+  rank = 0, bonusDamage = 0, extraDamage = "", showDamage = false, advantage = false, disadvantage = false,
+  flavor = "", relativeTo = actor
 }) {
   const roll = await new Roll(`${d20Formula(advantage, disadvantage)} + @mod`, { mod }).evaluate();
   const die = activeDie(roll);
@@ -72,7 +73,8 @@ export async function rollCheck({
     crit,
     fumble,
     showDamage: showDamage && (!!itemId || mobAttackIndex !== null),
-    tooltip: await roll.getTooltip()
+    tooltip: await roll.getTooltip(),
+    flavor: flavor ? await enrich(flavor, { relativeTo }) : ""
   });
 
   return ChatMessage.create({
@@ -83,7 +85,7 @@ export async function rollCheck({
     flags: {
       [SYSTEM_ID]: {
         actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex,
-        rank, bonusDamage, total: roll.total, crit, fumble
+        rank, bonusDamage, extraDamage, total: roll.total, crit, fumble
       }
     }
   });
@@ -96,18 +98,19 @@ export async function rollCheck({
  */
 export async function resolveAttack({
   actor, label, mod, advantage = false, disadvantage = false,
-  itemId = null, mobAttackIndex = null, rank = 0, bonusDamage = 0, target = game.user.targets.first()
+  itemId = null, mobAttackIndex = null, rank = 0, bonusDamage = 0, extraDamage = "",
+  target = game.user.targets.first(), flavor = "", relativeTo = actor
 }) {
   if (target?.actor?.type === "crawler") {
-    return postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, target });
+    return postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, extraDamage, target, flavor, relativeTo });
   }
   return rollCheck({
     actor, label, mod, advantage, disadvantage,
-    dc: targetEvade(target), itemId, mobAttackIndex, rank, bonusDamage, showDamage: true
+    dc: targetEvade(target), itemId, mobAttackIndex, rank, bonusDamage, extraDamage, showDamage: true, flavor, relativeTo
   });
 }
 
-async function postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, target }) {
+async function postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, extraDamage, target, flavor, relativeTo }) {
   const roll = await new Roll(`${d20Formula(advantage, disadvantage)} + @mod`, { mod }).evaluate();
   const die = activeDie(roll);
   const crit = die === 20;
@@ -123,7 +126,8 @@ async function postPendingAttack({ actor, label, mod, advantage, disadvantage, i
     die,
     crit,
     fumble,
-    tooltip: await roll.getTooltip()
+    tooltip: await roll.getTooltip(),
+    flavor: flavor ? await enrich(flavor, { relativeTo }) : ""
   });
 
   return ChatMessage.create({
@@ -133,7 +137,7 @@ async function postPendingAttack({ actor, label, mod, advantage, disadvantage, i
     sound: CONFIG.sounds.dice,
     flags: {
       [SYSTEM_ID]: {
-        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex, rank, bonusDamage,
+        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex, rank, bonusDamage, extraDamage,
         attackTotal: roll.total, attackCrit: crit, attackFumble: fumble,
         targetActorId: target.actor.id, targetTokenId: target.document?.id ?? target.id,
         awaitingEvade: true
@@ -148,7 +152,7 @@ async function postPendingAttack({ actor, label, mod, advantage, disadvantage, i
  */
 export async function postEvadeResult({
   defenderName, evadeRoll, attackTotal, attackCrit, attackFumble, label,
-  attackerActorId, attackerTokenId, itemId, mobAttackIndex, rank, bonusDamage
+  attackerActorId, attackerTokenId, itemId, mobAttackIndex, rank, bonusDamage, extraDamage
 }) {
   let hit, naturalOne = false, evadeTotal = null, evadeDie = null;
 
@@ -179,24 +183,29 @@ export async function postEvadeResult({
     flags: {
       [SYSTEM_ID]: {
         actorId: attackerActorId, tokenId: attackerTokenId,
-        itemId, mobAttackIndex, rank, bonusDamage,
+        itemId, mobAttackIndex, rank, bonusDamage, extraDamage,
         doubleDamage: naturalOne
       }
     }
   });
 }
 
-/** Weapon/spell damage. A crit doubles the number of base damage dice; Rank Damage Dice and
- * flat bonus damage (from size) are added afterward, undoubled. */
-export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDamage = 0, doubleDamage = false }) {
+/** Weapon/spell damage. A crit doubles the number of base damage dice. If the item's
+ * "grants a Rank Damage Die" toggle is on (i.e. its own book Upgrade text grants one — this
+ * is per-item, not automatic for every weapon), that die and any flat bonus damage (from
+ * size) are added afterward, undoubled. */
+export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDamage = 0, extraDamage = "", doubleDamage = false }) {
   const attrKey = item.system.attribute;
   const attrMod = (attrKey && attrKey !== "none") ? (actor.system.attributes?.[attrKey]?.mod ?? 0) : 0;
   const baseDie = item.system.damage || "1d6";
   const die = crit ? doubleDiceCount(baseDie) : baseDie;
-  const rankDie = CRAWLER.rankDamageDie(rank);
+  const rankDie = item.system.rankDamageDie
+    ? (item.system.rankDamageDieFormula || CRAWLER.rankDamageDie(rank))
+    : "";
 
   let formula = `${die} + @attr`;
   if (rankDie) formula += ` + ${rankDie}`;
+  if (extraDamage) formula += ` + ${extraDamage}`;
   if (bonusDamage) formula += ` + ${bonusDamage}`;
   if (doubleDamage) formula = `(${formula}) * 2`;
 
@@ -206,6 +215,21 @@ export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDam
     label: `${crit ? "Critical damage" : "Damage"} — ${item.name}`,
     roll,
     crit
+  });
+}
+
+/** Post a plain info card (name + flavor text, no roll) — used for Passive skills, which
+ * have nothing to roll but still deserve a way to share their description in chat. */
+export async function postInfo({ actor, label, flavor = "", relativeTo = actor }) {
+  const content = await render(`systems/${SYSTEM_ID}/templates/chat/info-card.hbs`, {
+    label,
+    actorName: actor.name,
+    flavor: flavor ? await enrich(flavor, { relativeTo }) : ""
+  });
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content
   });
 }
 
@@ -219,7 +243,8 @@ export async function postDamageCard({ actor, label, roll, crit = false }) {
     actorName: actor.name,
     total: roll.total,
     formula: roll.formula,
-    crit
+    crit,
+    tooltip: await roll.getTooltip()
   });
 
   return ChatMessage.create({

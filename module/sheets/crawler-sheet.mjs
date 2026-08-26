@@ -20,14 +20,13 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       showTab: CrawlerSheet._onShowTab,
       rollAttribute: CrawlerSheet._onRollAttribute,
       rollSkill: CrawlerSheet._onRollSkill,
-      rollAttack: CrawlerSheet._onRollAttack,
-      castAbility: CrawlerSheet._onCastAbility,
+      rollAttackGear: CrawlerSheet._onRollAttackGear,
+      useItem: CrawlerSheet._onUseItem,
       adjustRank: CrawlerSheet._onAdjustRank,
       toggleEquip: CrawlerSheet._onToggleEquip,
       createItem: CrawlerSheet._onCreateItem,
       editItem: CrawlerSheet._onEditItem,
       deleteItem: CrawlerSheet._onDeleteItem,
-      seedSkills: CrawlerSheet._onSeedSkills,
       pinItem: CrawlerSheet._onPinItem,
       unpinItem: CrawlerSheet._onUnpinItem,
       rollHotlist: CrawlerSheet._onRollHotlist,
@@ -47,37 +46,65 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     const context = await super._prepareContext(options);
     const actor = this.document;
     const system = actor.system;
+    const hotlistIds = system.hotlist ?? [];
 
-    const skills = actor.items.filter(i => i.type === "skill")
+    const skillItems = actor.items.filter(i => i.type === "skill");
+    const skills = skillItems
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(skill => ({
-        id: skill.id,
-        name: skill.name,
-        attribute: skill.system.attribute,
-        attributeLabel: CRAWLER.attributes[skill.system.attribute],
-        rank: skill.system.rank,
-        floorBonus: skill.system.floorBonus,
-        total: actor.skillModifier(skill),
-        checkType: skill.system.checkType,
-        checkTypeLabel: CRAWLER.skillCheckTypes[skill.system.checkType] ?? skill.system.checkType,
-        rollable: skill.system.checkType !== "passive",
-        pinned: (system.hotlist ?? []).includes(skill.id)
-      }));
+      .map(skill => {
+        const s = skill.system;
+        return {
+          id: skill.id,
+          name: skill.name,
+          skillType: s.skillType,
+          kind: s.kind,
+          kindLabel: CRAWLER.featureKinds[s.kind] ?? s.kind,
+          attribute: s.attribute,
+          attributeLabel: CRAWLER.attributes[s.attribute] ?? "",
+          rank: s.rank,
+          floorBonus: s.floorBonus,
+          total: actor.skillModifier(skill),
+          checkType: s.checkType,
+          checkTypeLabel: CRAWLER.skillCheckTypes[s.checkType] ?? s.checkType,
+          attackType: s.attackType,
+          attackTypeLabel: CRAWLER.attackTypes[s.attackType] ?? "",
+          damage: s.damage,
+          damageTypeLabel: CRAWLER.damageTypes[s.damageType] ?? "",
+          range: s.range,
+          manaCost: s.manaCost,
+          rollable: s.skillType !== "feature" && s.checkType !== "passive",
+          cooldownRemaining: this._cooldownRemaining(skill),
+          pinned: hotlistIds.includes(skill.id),
+          buffScope: s.buffScope,
+          buffSkillName: s.buffSkillName
+        };
+      });
+
+    const attackSkills = skills.filter(s => s.skillType === "attack");
+    const spellSkills = skills.filter(s => s.skillType === "spell");
+    const utilitySkills = skills.filter(s => s.skillType === "utility");
+    const features = skills.filter(s => s.skillType === "feature");
+
+    // A Utility Skill can boost an Attack/Spell if its scope matches by melee/ranged or by name.
+    const boostsFor = skill => utilitySkills.filter(u => {
+      if (u.buffScope === "none") return false;
+      if (u.buffScope === "specific") return u.buffSkillName === skill.name;
+      return u.buffScope === skill.attackType;
+    });
+    for (const s of [...attackSkills, ...spellSkills]) s.boosts = boostsFor(s);
 
     const gear = actor.items.filter(i => i.type === "gear")
-      .map(item => ({ id: item.id, name: item.name, img: item.img, ...item.system,
-        kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind,
-        slotLabel: CRAWLER.gearSlots[item.system.slot] ?? item.system.slot,
-        damageTypeLabel: CRAWLER.damageTypes[item.system.damageType] ?? "",
-        pinned: (system.hotlist ?? []).includes(item.id),
-        cooldownRemaining: this._cooldownRemaining(item) }));
-
-    const abilities = actor.items.filter(i => i.type === "ability")
-      .map(item => ({ id: item.id, name: item.name, img: item.img, ...item.system,
-        kindLabel: CRAWLER.abilityKinds[item.system.kind] ?? item.system.kind,
-        damageTypeLabel: CRAWLER.damageTypes[item.system.damageType] ?? "",
-        pinned: (system.hotlist ?? []).includes(item.id),
-        cooldownRemaining: this._cooldownRemaining(item) }));
+      .map(item => {
+        const linkedSkill = skillItems.find(s => s.name === item.system.skill);
+        return {
+          id: item.id, name: item.name, img: item.img, ...item.system,
+          kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind,
+          slotLabel: CRAWLER.gearSlots[item.system.slot] ?? item.system.slot,
+          linkedSkillId: linkedSkill?.id ?? null,
+          linkedSkillDamage: linkedSkill?.system.damage ?? "",
+          pinned: hotlistIds.includes(item.id)
+        };
+      });
 
     // One occupant per exclusive slot (head/torso/arms/hands/legs/feet); accessories stack to 10.
     const exclusiveSlots = ["head", "torso", "arms", "hands", "legs", "feet"];
@@ -87,15 +114,20 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     }));
     const accessories = gear.filter(g => g.slot === "accessory" && g.equipped);
 
-    const hotlist = (system.hotlist ?? [])
+    const hotlist = hotlistIds
       .map(id => actor.items.get(id))
       .filter(Boolean)
-      .map(item => ({
-        id: item.id, name: item.name, img: item.img, type: item.type,
-        sub: item.type === "skill" ? CRAWLER.attributes[item.system.attribute]
-          : item.type === "gear" ? `${item.system.damage} + ${item.system.attribute.toUpperCase()}`
-          : item.system.manaCost ? `${item.system.manaCost} Mana` : ""
-      }));
+      .map(item => {
+        let sub = "";
+        if (item.type === "skill") {
+          sub = (item.system.skillType === "attack" || item.system.skillType === "spell")
+            ? `${item.system.damage || "—"}${item.system.manaCost ? ` · ${item.system.manaCost} Mana` : ""}`
+            : (CRAWLER.attributes[item.system.attribute] ?? "Passive");
+        } else if (item.type === "gear") {
+          sub = CRAWLER.gearKinds[item.system.kind] ?? "";
+        }
+        return { id: item.id, name: item.name, img: item.img, type: item.type, sub };
+      });
 
     const effects = actor.effects.map(e => ({
       id: e.id, name: e.name, img: e.img, disabled: e.disabled,
@@ -114,7 +146,6 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       tabs: [
         { id: "skills", label: "Skills" },
         { id: "gear", label: "Gear" },
-        { id: "abilities", label: "Abilities" },
         { id: "hotlist", label: "Hotlist" },
         { id: "effects", label: "Effects" },
         { id: "notes", label: "Notes" },
@@ -128,13 +159,14 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
         mod: system.attributes[key].mod
       })),
       sizes: CRAWLER.sizes,
-      skills,
+      attackSkills,
+      spellSkills,
+      utilitySkills,
+      features,
       weapons: gear.filter(g => g.kind === "weapon"),
       otherGear: gear.filter(g => g.kind !== "weapon"),
       gearSlots,
       accessories,
-      spells: abilities.filter(a => a.kind === "spell"),
-      otherAbilities: abilities.filter(a => a.kind !== "spell"),
       hotlist,
       effects,
       hpSlots: Array.from({ length: 10 }, (_, i) => ({
@@ -193,27 +225,29 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
   }
 
   static async _onRollSkill(event, target) {
-    return this.document.rollSkill(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
+    const row = target.closest("[data-item-id]");
+    const boostId = row.querySelector("select[data-boost]")?.value || null;
+    return this.document.rollSkill(row.dataset.itemId, { ...rollModifiers(event), boostId });
   }
 
-  static async _onRollAttack(event, target) {
-    return this.document.rollAttack(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
+  static async _onRollAttackGear(event, target) {
+    return this.document.rollAttackViaGear(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
+  }
+
+  static async _onUseItem(event, target) {
+    return this.document.useItem(target.closest("[data-item-id]").dataset.itemId);
   }
 
   static async _onAdjustRank(event, target) {
     const item = this.document.items.get(target.closest("[data-item-id]").dataset.itemId);
     if (!item) return;
     const delta = Number(target.dataset.delta ?? 1);
-    const rank = Math.clamp(item.system.rank + delta, 0, 5);
+    const rank = Math.clamp(item.system.rank + delta, 0, 20);
     return item.update({ "system.rank": rank });
   }
 
   static async _onToggleEquip(event, target) {
     return this.document.equipGear(target.closest("[data-item-id]").dataset.itemId);
-  }
-
-  static async _onCastAbility(event, target) {
-    return this.document.castAbility(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
   }
 
   static async _onPinItem(event, target) {
@@ -230,10 +264,18 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   static async _onCreateItem(event, target) {
     const type = target.dataset.type;
+    const skillType = target.dataset.skillType;
+    const system = {};
+    if (type === "skill") {
+      system.skillType = skillType ?? "utility";
+      system.attribute = target.dataset.attribute ?? "str";
+      if (skillType === "attack" || skillType === "spell") system.checkType = "evade";
+      else if (skillType === "feature") system.checkType = "passive";
+    }
     const created = await this.document.createEmbeddedDocuments("Item", [{
-      name: `New ${type}`,
+      name: `New ${target.dataset.label ?? type}`,
       type,
-      system: type === "skill" ? { attribute: target.dataset.attribute ?? "str" } : {}
+      system
     }]);
     return created[0]?.sheet.render(true);
   }
@@ -251,10 +293,6 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       content: `<p>Delete <strong>${item.name}</strong>?</p>`
     });
     if (confirmed) await item.delete();
-  }
-
-  static async _onSeedSkills() {
-    return this.document.seedSkills();
   }
 
   static async _onCreateEffect() {

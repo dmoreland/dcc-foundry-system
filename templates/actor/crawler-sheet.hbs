@@ -92,19 +92,84 @@
 <section class="crawl-body">
 
   {{#if (crEq tab "skills")}}
+  <h3 class="crawl-subhead">Attacks</h3>
+  <ol class="crawl-list">
+    {{#each attackSkills}}
+    <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
+      <button type="button" class="crawl-row-name" data-action="rollSkill" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
+      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
+      <span class="crawl-muted">
+        {{this.attackTypeLabel}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
+        {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
+        {{#if this.boosts.length}}
+        <select data-boost class="crawl-boost-select">
+          <option value="">No boost</option>
+          {{#each this.boosts}}<option value="{{this.id}}">{{this.name}}</option>{{/each}}
+        </select>
+        {{/if}}
+      </span>
+      <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No Attack Skills yet.</li>
+    {{/each}}
+  </ol>
+  <div class="crawl-list-foot">
+    <button type="button" data-action="createItem" data-type="skill" data-skill-type="attack" data-label="Attack Skill">New Attack Skill</button>
+  </div>
+
+  <h3 class="crawl-subhead">Spells</h3>
+  <ol class="crawl-list">
+    {{#each spellSkills}}
+    <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
+      <button type="button" class="crawl-row-name" data-action="rollSkill" title="Cast {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
+      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
+      <span class="crawl-muted">
+        {{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
+        {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
+        {{#if this.boosts.length}}
+        <select data-boost class="crawl-boost-select">
+          <option value="">No boost</option>
+          {{#each this.boosts}}<option value="{{this.id}}">{{this.name}}</option>{{/each}}
+        </select>
+        {{/if}}
+      </span>
+      <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No Spells yet.</li>
+    {{/each}}
+  </ol>
+  <div class="crawl-list-foot">
+    <button type="button" data-action="createItem" data-type="skill" data-skill-type="spell" data-label="Spell">New Spell</button>
+  </div>
+
+  <h3 class="crawl-subhead">Utility</h3>
   <div class="crawl-list-head crawl-row-skill">
     <span>Skill</span><span>Attr</span><span>Rank</span><span>Floor</span><span>Total</span><span></span>
   </div>
   <ol class="crawl-list">
-    {{#each skills}}
+    {{#each utilitySkills}}
     <li class="crawl-row crawl-row-skill draggable" data-item-id="{{this.id}}">
       <span class="crawl-row-name-wrap">
-        {{#if this.rollable}}
-        <button type="button" class="crawl-row-name" data-action="rollSkill" title="Roll {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)">{{this.name}}</button>
-        {{else}}
-        <span class="crawl-row-name crawl-row-name-static">{{this.name}}</span>
-        {{/if}}
-        <span class="crawl-check-badge">{{this.checkTypeLabel}}</span>
+        <button type="button" class="crawl-row-name" data-action="rollSkill" title="{{#if this.rollable}}Roll {{this.name}} (Shift = Advantage, Ctrl = Disadvantage){{else}}Post {{this.name}}'s description to chat{{/if}}">{{this.name}}</button>
+        <span class="crawl-check-badge">{{this.checkTypeLabel}}{{#unless (crEq this.buffScope "none")}} · Buff{{/unless}}</span>
       </span>
       <span class="crawl-mono">{{crUpper this.attribute}}</span>
       <span class="crawl-rank">
@@ -125,12 +190,35 @@
       </span>
     </li>
     {{else}}
-    <li class="crawl-empty">No skills yet. Add the standard list to get going.</li>
+    <li class="crawl-empty">No Utility Skills yet.</li>
     {{/each}}
   </ol>
   <div class="crawl-list-foot">
-    <button type="button" data-action="seedSkills">Add standard skills</button>
-    <button type="button" data-action="createItem" data-type="skill">New skill</button>
+    <button type="button" data-action="createItem" data-type="skill" data-skill-type="utility" data-label="Utility Skill">New Utility Skill</button>
+  </div>
+
+  <h3 class="crawl-subhead">Features</h3>
+  <ol class="crawl-list">
+    {{#each features}}
+    <li class="crawl-row crawl-row-ability draggable" data-item-id="{{this.id}}">
+      <button type="button" class="crawl-row-name" data-action="rollSkill" title="Post {{this.name}}'s description to chat">{{this.name}}</button>
+      <span class="crawl-kind">{{this.kindLabel}}</span>
+      <span class="crawl-row-controls">
+        {{#if ../editable}}
+        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
+          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
+        </button>
+        {{/if}}
+        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No class abilities, racial traits, achievements or sponsorships yet.</li>
+    {{/each}}
+  </ol>
+  <div class="crawl-list-foot">
+    <button type="button" data-action="createItem" data-type="skill" data-skill-type="feature" data-label="Feature">New Feature</button>
   </div>
   {{/if}}
 
@@ -155,12 +243,9 @@
   <ol class="crawl-list">
     {{#each weapons}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
-      <button type="button" class="crawl-row-name" data-action="rollAttack" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
-      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
-      <span class="crawl-muted">
-        {{this.skill}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
-        {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
-      </span>
+      <button type="button" class="crawl-row-name" data-action="rollAttackGear" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#unless this.linkedSkillId}}disabled{{/unless}}>{{this.name}}</button>
+      <span class="crawl-mono">{{#if this.linkedSkillDamage}}{{this.linkedSkillDamage}}{{else}}—{{/if}}</span>
+      <span class="crawl-muted">{{#if this.skill}}Skill: {{this.skill}}{{else}}No linked Skill{{/if}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
         <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">
@@ -186,6 +271,11 @@
       <span class="crawl-muted">{{this.kindLabel}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
+        {{#if (crEq this.kind "consumable")}}
+        <button type="button" data-action="useItem" title="Use">
+          <i class="fa-solid fa-flask"></i>
+        </button>
+        {{/if}}
         {{#unless (crEq this.slot "none")}}
         <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">
           <i class="fa-solid {{#if this.equipped}}fa-shield-halved{{else}}fa-shield{{/if}}"></i>
@@ -205,57 +295,6 @@
   </ol>
   <div class="crawl-list-foot">
     <button type="button" data-action="createItem" data-type="gear">New gear</button>
-  </div>
-  {{/if}}
-
-  {{#if (crEq tab "abilities")}}
-  <h3 class="crawl-subhead">Spells</h3>
-  <ol class="crawl-list">
-    {{#each spells}}
-    <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
-      <button type="button" class="crawl-row-name" data-action="castAbility" title="Cast {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
-      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
-      <span class="crawl-muted">
-        {{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
-        {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
-      </span>
-      <span class="crawl-row-controls">
-        {{#if ../editable}}
-        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
-          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
-        </button>
-        {{/if}}
-        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
-        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
-      </span>
-    </li>
-    {{else}}
-    <li class="crawl-empty">No spells yet.</li>
-    {{/each}}
-  </ol>
-
-  <h3 class="crawl-subhead">Other</h3>
-  <ol class="crawl-list">
-    {{#each otherAbilities}}
-    <li class="crawl-row crawl-row-ability draggable" data-item-id="{{this.id}}">
-      <span class="crawl-row-name">{{this.name}}</span>
-      <span class="crawl-kind">{{this.kindLabel}}</span>
-      <span class="crawl-row-controls">
-        {{#if ../editable}}
-        <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
-          <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
-        </button>
-        {{/if}}
-        <button type="button" data-action="editItem"><i class="fa-solid fa-pen"></i></button>
-        <button type="button" data-action="deleteItem"><i class="fa-solid fa-trash"></i></button>
-      </span>
-    </li>
-    {{else}}
-    <li class="crawl-empty">No class abilities, racial traits, achievements or sponsorships yet.</li>
-    {{/each}}
-  </ol>
-  <div class="crawl-list-foot">
-    <button type="button" data-action="createItem" data-type="ability">New ability</button>
   </div>
   {{/if}}
 

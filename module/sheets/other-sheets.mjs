@@ -114,14 +114,19 @@ export class CrawlerItemSheet extends RichTextMixin(HandlebarsMixin(ItemSheetV2)
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const item = this.document;
+    const isSkill = item.type === "skill";
+    const skillType = isSkill ? item.system.skillType : null;
     return Object.assign(context, {
       item,
       system: item.system,
       editable: this.isEditable,
       config: CRAWLER,
-      isSkill: item.type === "skill",
+      isSkill,
       isGear: item.type === "gear",
-      isAbility: item.type === "ability",
+      isAttack: skillType === "attack",
+      isSpell: skillType === "spell",
+      isUtility: skillType === "utility",
+      isFeature: skillType === "feature",
       editing: { description: this.editingFields.has("description") },
       rendered: { description: await enrich(item.system.description, { relativeTo: item }) }
     });

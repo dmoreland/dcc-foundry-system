@@ -139,55 +139,56 @@ export class MobData extends foundry.abstract.TypeDataModel {
 /*  Items                                       */
 /* -------------------------------------------- */
 
+/**
+ * Skill covers everything skill-shaped: Attack Skills (weapons), Spells, Utility Skills, and
+ * static Features (racial traits, class abilities, curses, status effects). `skillType` drives
+ * which fields are meaningful; the sheet/item-sheet gate visibility on it. This replaces the
+ * old Skill/Ability split — a weapon or spell no longer just links to a Skill by name for its
+ * Rank, it *is* the Skill.
+ */
 export class SkillData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
-      attribute: new fields.StringField({
-        initial: "str",
-        choices: CRAWLER.skillAttributes.reduce((o, k) => { o[k] = CRAWLER.attributes[k]; return o; }, {})
-      }),
-      rank: num(0, { min: 0, max: 5 }),
+      skillType: new fields.StringField({ initial: "utility", choices: CRAWLER.skillTypes }),
+      kind: new fields.StringField({ initial: "class", choices: CRAWLER.featureKinds }),
+      attribute: new fields.StringField({ initial: "str", choices: CRAWLER.skillAttributeChoices }),
+      rank: num(0, { min: 0, max: 20 }),
       floorBonus: num(0),
       checkType: new fields.StringField({ initial: "unopposed", choices: CRAWLER.skillCheckTypes }),
+      attackType: new fields.StringField({ initial: "melee", choices: CRAWLER.attackTypes }),
+      damage: new fields.StringField({ initial: "" }),
+      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
+      range: new fields.StringField({ initial: "" }),
+      manaCost: num(0, { min: 0 }),
+      aiFavor: num(0),
+      cooldown: num(0, { min: 0 }),
+      rankDamageDie: new fields.BooleanField({ initial: false }),
+      rankDamageDieFormula: new fields.StringField({ initial: "" }),
+      cost: num(0, { min: 0 }),
+      buffScope: new fields.StringField({ initial: "none", choices: CRAWLER.buffScopes }),
+      buffSkillName: new fields.StringField({ initial: "" }),
+      buffRequiresDisadvantage: new fields.BooleanField({ initial: false }),
+      buffToHitBonus: new fields.BooleanField({ initial: false }),
+      buffDamage: new fields.StringField({ initial: "" }),
       description: new fields.HTMLField({ initial: "" })
     };
   }
 }
 
+/** Physical inventory only — armor, consumables, accessories, and the weapon prop itself
+ * (which links to its Attack Skill by name for the roll; see SkillData). */
 export class GearData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       kind: new fields.StringField({ initial: "weapon", choices: CRAWLER.gearKinds }),
       slot: new fields.StringField({ initial: "none", choices: CRAWLER.gearSlots }),
-      damage: new fields.StringField({ initial: "1d6" }),
-      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
-      range: new fields.StringField({ initial: "5 ft" }),
-      attribute: new fields.StringField({ initial: "str" }),
-      skill: new fields.StringField({ initial: "Brawl" }),
-      aiFavor: num(0),
-      cooldown: num(0, { min: 0 }),
+      skill: new fields.StringField({ initial: "" }),
       armour: num(0),
       quantity: num(1, { min: 0 }),
       equipped: new fields.BooleanField({ initial: false }),
       uses: new fields.SchemaField({ value: num(0), max: num(0) }),
-      description: new fields.HTMLField({ initial: "" })
-    };
-  }
-}
-
-export class AbilityData extends foundry.abstract.TypeDataModel {
-  static defineSchema() {
-    return {
-      kind: new fields.StringField({ initial: "class", choices: CRAWLER.abilityKinds }),
-      damage: new fields.StringField({ initial: "" }),
-      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
-      range: new fields.StringField({ initial: "" }),
-      attribute: new fields.StringField({ initial: "str" }),
-      skill: new fields.StringField({ initial: "" }),
-      manaCost: num(0, { min: 0 }),
-      aiFavor: num(0),
-      cooldown: num(0, { min: 0 }),
-      cost: num(0, { min: 0 }),
+      useDamage: new fields.StringField({ initial: "" }),
+      useAttribute: new fields.StringField({ initial: "none" }),
       description: new fields.HTMLField({ initial: "" })
     };
   }

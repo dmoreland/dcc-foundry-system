@@ -1,6 +1,6 @@
 import { SYSTEM_ID, preload, registerSheet, unregisterCoreSheet, onChatCardRender } from "./helpers/compat.mjs";
 import { CRAWLER } from "./data/config.mjs";
-import { CrawlerData, MobData, SkillData, GearData, AbilityData } from "./data/models.mjs";
+import { CrawlerData, MobData, SkillData, GearData } from "./data/models.mjs";
 import { CrawlerActor, CrawlerItem } from "./documents.mjs";
 import { CrawlerSheet } from "./sheets/crawler-sheet.mjs";
 import { MobSheet, CrawlerItemSheet } from "./sheets/other-sheets.mjs";
@@ -14,7 +14,7 @@ Hooks.once("init", () => {
   CONFIG.Actor.documentClass = CrawlerActor;
   CONFIG.Item.documentClass = CrawlerItem;
   CONFIG.Actor.dataModels = { crawler: CrawlerData, mob: MobData };
-  CONFIG.Item.dataModels = { skill: SkillData, gear: GearData, ability: AbilityData };
+  CONFIG.Item.dataModels = { skill: SkillData, gear: GearData };
 
   // Initiative is d20 + Dexterity.
   CONFIG.Combat.initiative = { formula: "1d20 + @dex", decimals: 0 };
@@ -32,7 +32,7 @@ Hooks.once("init", () => {
   unregisterCoreSheet(Item);
   registerSheet(Actor, CrawlerSheet, { types: ["crawler"], makeDefault: true, label: "Crawler Sheet" });
   registerSheet(Actor, MobSheet, { types: ["mob"], makeDefault: true, label: "Mob Sheet" });
-  registerSheet(Item, CrawlerItemSheet, { types: ["skill", "gear", "ability"], makeDefault: true, label: "Crawl Item Sheet" });
+  registerSheet(Item, CrawlerItemSheet, { types: ["skill", "gear"], makeDefault: true, label: "Crawl Item Sheet" });
 
   return preload([
     `systems/${SYSTEM_ID}/templates/actor/crawler-sheet.hbs`,
@@ -43,7 +43,8 @@ Hooks.once("init", () => {
     `systems/${SYSTEM_ID}/templates/chat/check-card.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/damage-card.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/attack-pending.hbs`,
-    `systems/${SYSTEM_ID}/templates/chat/evade-card.hbs`
+    `systems/${SYSTEM_ID}/templates/chat/evade-card.hbs`,
+    `systems/${SYSTEM_ID}/templates/chat/info-card.hbs`
   ]);
 });
 
@@ -102,7 +103,8 @@ onChatCardRender((message, html) => {
         if (!item) return ui.notifications.warn("That weapon is gone.");
         return Dice.rollDamage({
           actor, item, crit,
-          rank: flags.rank ?? 0, bonusDamage: flags.bonusDamage ?? 0, doubleDamage: flags.doubleDamage
+          rank: flags.rank ?? 0, bonusDamage: flags.bonusDamage ?? 0, doubleDamage: flags.doubleDamage,
+          extraDamage: flags.extraDamage ?? ""
         });
       }
     });
