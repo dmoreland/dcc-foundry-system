@@ -1,4 +1,5 @@
 import { CRAWLER } from "./data/config.mjs";
+import { SYSTEM_ID } from "./helpers/compat.mjs";
 import * as Dice from "./helpers/rolls.mjs";
 
 export class CrawlerActor extends Actor {
@@ -20,61 +21,80 @@ export class CrawlerActor extends Actor {
     return data;
   }
 
-  /** Total modifier for a skill item: attribute + rank + any temporary floor bonus. */
+  /** Total modifier for a skill item: attribute mod + rank + floor bonus + injury penalty. */
   skillModifier(skill) {
     const attr = this.system.attributes?.[skill.system.attribute];
-    return (attr?.total ?? 0) + skill.system.rank + skill.system.floorBonus;
+    const injuryPenalty = this.system.injuryPenalty ?? 0;
+    return (attr?.mod ?? 0) + skill.system.rank + skill.system.floorBonus + injuryPenalty;
   }
 
-  async rollAttribute(key, { dc = null } = {}) {
+  async rollAttribute(key, { dc = null, advantage = false, disadvantage = false } = {}) {
     const attr = this.system.attributes?.[key];
     if (!attr) return;
+    const injuryPenalty = this.system.injuryPenalty ?? 0;
     return Dice.rollCheck({
       actor: this,
       label: `${CRAWLER.attributes[key]} Check`,
-      mod: attr.total,
-      dc
+      mod: attr.mod + injuryPenalty,
+      dc, advantage, disadvantage
     });
   }
 
-  async rollSkill(skillId, { dc = null } = {}) {
+  async rollSkill(skillId, { dc = null, advantage = false, disadvantage = false } = {}) {
     const skill = this.items.get(skillId);
     if (!skill) return;
     if (skill.system.checkType === "passive") {
       return ui.notifications.warn(`${skill.name} is a passive skill and can't be rolled.`);
     }
+    // Untrained Skill use (Rank 0) rolls with Disadvantage by default.
+    const untrained = skill.system.rank === 0;
     const attrLabel = CRAWLER.attributes[skill.system.attribute];
     return Dice.rollCheck({
       actor: this,
       label: `${skill.name} (${attrLabel})`,
       mod: this.skillModifier(skill),
-      dc
+      dc,
+      advantage,
+      disadvantage: disadvantage || untrained
     });
   }
 
-  /** Attack with a gear item. Uses a targeted token's Evade as the DC if one is picked. */
-  async rollAttack(itemId) {
+  /** Attack with a gear item. Resolves against a Crawler target's reactive Evade, or a Mob's passive Evade. */
+  async rollAttack(itemId, { advantage = false, disadvantage = false } = {}) {
     const item = this.items.get(itemId);
     if (!item) return;
+    if (this.isOnCooldown(item)) return ui.notifications.warn(`${item.name} is still on cooldown.`);
+
     const attrKey = item.system.attribute;
-    const attrMod = this.system.attributes?.[attrKey]?.total ?? 0;
+    const attrMod = this.system.attributes?.[attrKey]?.mod ?? 0;
     const skill = this.items.find(i => i.type === "skill" && i.name === item.system.skill);
     const rank = skill ? skill.system.rank + skill.system.floorBonus : 0;
+    const injuryPenalty = this.system.injuryPenalty ?? 0;
 
-    return Dice.rollCheck({
+    const target = game.user.targets.first();
+    const size = Dice.targetSizeModifier(this, target);
+
+    await this.useCooldown(item);
+
+    return Dice.resolveAttack({
       actor: this,
       label: `Attack — ${item.name}`,
-      mod: attrMod + rank,
-      dc: Dice.targetEvade(),
+      mod: attrMod + rank + injuryPenalty,
+      advantage: advantage || size.advantage,
+      disadvantage: disadvantage || size.disadvantage,
       itemId: item.id,
-      showDamage: true
+      rank,
+      bonusDamage: size.bonusDamage,
+      target
     });
   }
 
-  /** Cast a spell ability. Checks and deducts Mana before rolling; blocks the cast if short. */
-  async castAbility(itemId) {
+  /** Cast a spell ability. Checks and deducts Mana before rolling; blocks the cast if short or on cooldown. */
+  async castAbility(itemId, { advantage = false, disadvantage = false } = {}) {
     const item = this.items.get(itemId);
     if (!item) return;
+    if (this.isOnCooldown(item)) return ui.notifications.warn(`${item.name} is still on cooldown.`);
+
     const manaCost = item.system.manaCost ?? 0;
     const mana = this.system.mana;
     if (mana && manaCost > mana.value) {
@@ -82,34 +102,88 @@ export class CrawlerActor extends Actor {
     }
 
     const attrKey = item.system.attribute;
-    const attrMod = this.system.attributes?.[attrKey]?.total ?? 0;
+    const attrMod = this.system.attributes?.[attrKey]?.mod ?? 0;
     const skill = this.items.find(i => i.type === "skill" && i.name === item.system.skill);
     const rank = skill ? skill.system.rank + skill.system.floorBonus : 0;
+    const injuryPenalty = this.system.injuryPenalty ?? 0;
+
+    const target = game.user.targets.first();
+    const size = Dice.targetSizeModifier(this, target);
 
     if (manaCost) await this.update({ "system.mana.value": mana.value - manaCost });
+    await this.useCooldown(item);
 
-    return Dice.rollCheck({
+    return Dice.resolveAttack({
       actor: this,
       label: `Cast — ${item.name}`,
-      mod: attrMod + rank,
-      dc: Dice.targetEvade(),
+      mod: attrMod + rank + injuryPenalty,
+      advantage: advantage || size.advantage,
+      disadvantage: disadvantage || size.disadvantage,
       itemId: item.id,
-      showDamage: true
+      rank,
+      bonusDamage: size.bonusDamage,
+      target
     });
   }
 
+  /** Whether a Gear/Ability item is still on Cooldown. Only enforced while combat is active. */
+  isOnCooldown(item) {
+    if (!game.combat?.started) return false;
+    const until = item.getFlag(SYSTEM_ID, "cooldownUntil");
+    return until !== undefined && game.combat.round < until;
+  }
+
+  /** Start an item's Cooldown timer, if it has one and combat is active. */
+  async useCooldown(item) {
+    if (!item.system.cooldown || !game.combat?.started) return;
+    await item.setFlag(SYSTEM_ID, "cooldownUntil", game.combat.round + item.system.cooldown);
+  }
+
   /**
-   * Apply a signed HP change. A positive `amount` damages (temporary HP soaks first,
-   * for Crawlers); a negative amount heals. `multiplier` scales the amount (0.5 for half,
-   * 2 for double, -1 to turn damage into healing). Works for both crawler and mob actors.
-   * @returns {{name: string, before: number, after: number, delta: number}|null}
+   * Roll a reactive Evade check against a pending attack (posted by Dice.resolveAttack when
+   * the target is a Crawler), or skip it and take the hit automatically.
+   */
+  async rollEvade(flags) {
+    const dexMod = this.system.attributes?.dex?.mod ?? 0;
+    const mod = dexMod + (this.system.evade?.bonus ?? 0) + (this.system.injuryPenalty ?? 0);
+    const evadeRoll = await new Roll("1d20 + @mod", { mod }).evaluate();
+    return this._resolveEvade(flags, evadeRoll);
+  }
+
+  /** Skip the reactive Evade roll — no Action spent, so the attack auto-hits unless it fumbled. */
+  async skipEvade(flags) {
+    return this._resolveEvade(flags, null);
+  }
+
+  async _resolveEvade(flags, evadeRoll) {
+    const message = await Dice.postEvadeResult({
+      defenderName: this.name,
+      label: evadeRoll ? "Evade" : "Took the Hit",
+      evadeRoll,
+      attackTotal: flags.attackTotal, attackCrit: flags.attackCrit, attackFumble: flags.attackFumble,
+      attackerActorId: flags.actorId, attackerTokenId: flags.tokenId,
+      itemId: flags.itemId, mobAttackIndex: flags.mobAttackIndex, rank: flags.rank, bonusDamage: flags.bonusDamage
+    });
+    if (message.flags?.[SYSTEM_ID]?.doubleDamage) {
+      await this.createEmbeddedDocuments("ActiveEffect", [{
+        name: "Major Injury", icon: "icons/svg/blood.svg",
+        changes: [{ key: "system.injuryPenalty", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: -5 }]
+      }]);
+    }
+    return message;
+  }
+
+  /**
+   * Apply a signed HP change in whole Health Bar slots (partial-slot damage is lost, per
+   * the rules). A positive `amount` damages (temporary slots soak first, for Crawlers); a
+   * negative amount heals. `multiplier` scales the amount (0.5 half, 2 double, -1 to heal).
+   * @returns {{name: string, before: number, after: number, maxSlots: number, delta: number}|null}
    */
   async applyDamage(amount, { multiplier = 1 } = {}) {
     const hp = this.system.hp;
     if (!hp) return null;
 
     let delta = Math.floor(Number(amount) * Number(multiplier));
-    const before = hp.value;
 
     // Damage Resistance reduces incoming damage (never healing) before anything else.
     if (delta > 0) {
@@ -117,42 +191,81 @@ export class CrawlerActor extends Actor {
       const drValue = typeof dr === "object" ? (dr?.value ?? 0) : (dr ?? 0);
       delta = Math.max(0, delta - drValue);
     }
-    if (!delta) return { name: this.name, before, after: before, delta: 0 };
+
+    const slotValue = hp.slotValue || 1;
+    const maxSlots = this.type === "crawler" ? 10 : (hp.maxSlots ?? 10);
+    const before = hp.filledSlots;
+    const slotsChanged = Math.floor(Math.abs(delta) / slotValue) * Math.sign(delta);
+    if (!slotsChanged) return { name: this.name, before, after: before, maxSlots, delta: 0 };
 
     const updates = {};
-    let remaining = delta;
+    let remainingSlots = slotsChanged;
 
-    // Temporary HP (Crawlers only) absorbs damage before real HP.
-    if (delta > 0 && typeof hp.temp === "number" && hp.temp > 0) {
-      const absorbed = Math.min(hp.temp, remaining);
-      updates["system.hp.temp"] = hp.temp - absorbed;
-      remaining -= absorbed;
+    // Temporary slots (Crawlers only) absorb damage before real slots.
+    if (slotsChanged > 0 && typeof hp.tempSlots === "number" && hp.tempSlots > 0) {
+      const absorbed = Math.min(hp.tempSlots, remainingSlots);
+      updates["system.hp.tempSlots"] = hp.tempSlots - absorbed;
+      remainingSlots -= absorbed;
     }
 
-    const after = Math.clamp(before - remaining, 0, hp.max);
-    updates["system.hp.value"] = after;
+    const after = Math.clamp(before - remainingSlots, 0, maxSlots);
+    updates["system.hp.filledSlots"] = after;
     await this.update(updates);
-    return { name: this.name, before, after, delta };
+    await this._syncDefeatedStatus(before, after);
+    return { name: this.name, before, after, maxSlots, delta: slotsChanged };
   }
 
-  /** Roll one of a mob's attacks (index into system.attacks) against the targeted token's Evade. */
-  async rollMobAttack(index) {
+  /** Mark/clear a Dying (Crawler) or defeated (Mob) status when Health Bar slots hit/leave 0. */
+  async _syncDefeatedStatus(before, after) {
+    try {
+      if (after === 0 && before > 0) {
+        if (this.type === "mob") {
+          await this.toggleStatusEffect?.("dead", { active: true });
+        } else if (!this.effects.find(e => e.name === "Dying")) {
+          await this.createEmbeddedDocuments("ActiveEffect", [{
+            name: "Dying", icon: "icons/svg/skull.svg", statuses: ["unconscious"]
+          }]);
+        }
+      } else if (after > 0 && before === 0) {
+        const dying = this.effects.find(e => e.name === "Dying");
+        if (dying) await dying.delete();
+        if (this.type === "mob") await this.toggleStatusEffect?.("dead", { active: false });
+      }
+    } catch (err) {
+      console.warn(`${SYSTEM_ID} | Could not sync defeated status for ${this.name}`, err);
+    }
+  }
+
+  /** Roll one of a mob's attacks (index into system.attacks). Resolves against a Crawler
+   *  target's reactive Evade, or another Mob's passive Evade. */
+  async rollMobAttack(index, { advantage = false, disadvantage = false } = {}) {
     const atk = this.system.attacks?.[index];
     if (!atk) return;
-    return Dice.rollCheck({
+    const target = game.user.targets.first();
+    const size = Dice.targetSizeModifier(this, target);
+    return Dice.resolveAttack({
       actor: this,
       label: `Attack — ${atk.name}`,
       mod: atk.attack,
-      dc: Dice.targetEvade()
+      advantage: advantage || size.advantage,
+      disadvantage: disadvantage || size.disadvantage,
+      mobAttackIndex: index,
+      bonusDamage: size.bonusDamage,
+      target
     });
   }
 
   /** Roll damage for one of a mob's attacks. */
-  async rollMobDamage(index) {
+  async rollMobDamage(index, { crit = false, doubleDamage = false } = {}) {
     const atk = this.system.attacks?.[index];
     if (!atk) return;
-    const roll = await new Roll(atk.damage || "1d6").evaluate();
-    return Dice.postDamageCard({ actor: this, label: `Damage — ${atk.name}`, roll });
+    const baseDie = atk.damage || "1d6";
+    let formula = crit ? Dice.doubleDiceCount(baseDie) : baseDie;
+    if (doubleDamage) formula = `(${formula}) * 2`;
+    const roll = await new Roll(formula).evaluate();
+    return Dice.postDamageCard({
+      actor: this, label: `${crit ? "Critical damage" : "Damage"} — ${atk.name}`, roll, crit
+    });
   }
 
   /** Add a blank attack entry to a mob. */
@@ -165,6 +278,16 @@ export class CrawlerActor extends Actor {
   async removeAttack(index) {
     const attacks = (this.system.attacks ?? []).filter((_, i) => i !== index);
     return this.update({ "system.attacks": attacks });
+  }
+
+  /** Apply a Minor (-2) or Major (-5) Injury to all Checks via an ActiveEffect. */
+  async applyInjury(severity = "minor") {
+    const value = severity === "major" ? -5 : -2;
+    const name = severity === "major" ? "Major Injury" : "Minor Injury";
+    return this.createEmbeddedDocuments("ActiveEffect", [{
+      name, icon: "icons/svg/blood.svg",
+      changes: [{ key: "system.injuryPenalty", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value }]
+    }]);
   }
 
   /**

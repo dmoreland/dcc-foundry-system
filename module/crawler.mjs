@@ -41,7 +41,9 @@ Hooks.once("init", () => {
     `systems/${SYSTEM_ID}/templates/partials/richtext.hbs`,
     `systems/${SYSTEM_ID}/templates/partials/effects-list.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/check-card.hbs`,
-    `systems/${SYSTEM_ID}/templates/chat/damage-card.hbs`
+    `systems/${SYSTEM_ID}/templates/chat/damage-card.hbs`,
+    `systems/${SYSTEM_ID}/templates/chat/attack-pending.hbs`,
+    `systems/${SYSTEM_ID}/templates/chat/evade-card.hbs`
   ]);
 });
 
@@ -81,13 +83,27 @@ onChatCardRender((message, html) => {
         return Dice.applyToSelected(amount, multiplier);
       }
 
+      if (action === "evade" || action === "takeHit") {
+        const targetActor = resolveTargetActor(flags);
+        if (!targetActor) return ui.notifications.warn("That target is no longer available.");
+        if (!targetActor.isOwner) return ui.notifications.warn("Only that Crawler's owner (or the GM) can respond.");
+        return action === "evade" ? targetActor.rollEvade(flags) : targetActor.skipEvade(flags);
+      }
+
       const actor = resolveActor(flags);
       if (!actor) return ui.notifications.warn("That Crawler is no longer available.");
 
       if (action === "damage" || action === "crit") {
+        const crit = action === "crit";
+        if (flags.mobAttackIndex !== null && flags.mobAttackIndex !== undefined) {
+          return actor.rollMobDamage(flags.mobAttackIndex, { crit, doubleDamage: flags.doubleDamage });
+        }
         const item = actor.items.get(flags.itemId);
         if (!item) return ui.notifications.warn("That weapon is gone.");
-        return Dice.rollDamage({ actor, item, crit: action === "crit" });
+        return Dice.rollDamage({
+          actor, item, crit,
+          rank: flags.rank ?? 0, bonusDamage: flags.bonusDamage ?? 0, doubleDamage: flags.doubleDamage
+        });
       }
     });
   }
@@ -99,4 +115,12 @@ function resolveActor(flags) {
     if (token?.actor) return token.actor;
   }
   return game.actors.get(flags.actorId);
+}
+
+function resolveTargetActor(flags) {
+  if (flags.targetTokenId) {
+    const token = canvas.tokens?.get(flags.targetTokenId);
+    if (token?.actor) return token.actor;
+  }
+  return game.actors.get(flags.targetActorId);
 }

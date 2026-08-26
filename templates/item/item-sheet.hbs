@@ -48,6 +48,7 @@
   <label>Attack skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Blades" {{#unless editable}}disabled{{/unless}}></label>
   <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="5 ft" {{#unless editable}}disabled{{/unless}}></label>
   <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
   <label>Armour bonus <input type="number" name="system.armour" value="{{system.armour}}" {{#unless editable}}disabled{{/unless}}></label>
   <label>Quantity <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" {{#unless editable}}disabled{{/unless}}></label>
   <label class="crawl-check">Equipped
@@ -78,6 +79,7 @@
   <label>Mana cost <input type="number" name="system.manaCost" value="{{system.manaCost}}" min="0" title="Deducted automatically when cast" {{#unless editable}}disabled{{/unless}}></label>
   <label>Fan Point cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Inert until the Fan Points resource is built" {{#unless editable}}disabled{{/unless}}></label>
   <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
   {{/if}}
 
 </section>

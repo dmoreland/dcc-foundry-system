@@ -129,6 +129,7 @@
 .crawl-attr-abbr { font-size: 10px; letter-spacing: 0.16em; text-indent: 0.16em; color: var(--crawl-muted); }
 .crawl-attr-roll:hover .crawl-attr-abbr { color: inherit; }
 .crawl-attr-total { font-family: var(--crawl-mono); font-size: 20px; font-weight: 700; }
+.crawl-attr-score { font-family: var(--crawl-mono); font-size: 10px; color: var(--crawl-muted); }
 .crawl-attr-inputs { display: flex; gap: 2px; width: 100%; }
 .crawl-attr-inputs input { width: 100%; text-align: center; font-size: 11px; padding: 1px; }
 .crawl-attr-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; text-indent: 0.08em; color: var(--crawl-muted); }
@@ -144,6 +145,18 @@
 .crawl-bar-mana .crawl-bar-fill { background: #6f7ce0; }
 .crawl-bar-values { display: flex; align-items: center; gap: 4px; font-family: var(--crawl-mono); font-size: 12px; }
 .crawl-bar-values input { width: 46px; text-align: right; padding: 1px 3px; }
+
+.crawl-hp-slots { display: flex; gap: 2px; height: 14px; }
+.crawl-hp-slot {
+  flex: 1;
+  background: var(--crawl-panel-2);
+  border: 1px solid var(--crawl-line);
+}
+.crawl-hp-slot.filled { background: var(--crawl-brand); border-color: var(--crawl-brand); }
+.crawl-hp-slot.temp { background: var(--crawl-live); border-color: var(--crawl-live); }
+
+.crawl-injury-buttons { display: flex; gap: 6px; }
+.crawl-injury-buttons button { flex: 1; padding: 4px; font-size: 11px; }
 
 .crawl-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .crawl-stat-grid-2 { grid-template-columns: repeat(2, 1fr); }
