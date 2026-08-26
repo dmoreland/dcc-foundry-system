@@ -4,6 +4,8 @@
     <h4>{{label}}</h4>
   </header>
 
+  {{#if flavor}}<div class="crawl-card-flavor">{{{flavor}}}</div>{{/if}}
+
   <div class="crawl-card-result" title="d20 {{die}} {{modSign}}">
     <span class="crawl-card-total">{{total}}</span>
     <span class="crawl-card-detail">d20 [{{die}}] {{modSign}} — vs {{targetName}}</span>

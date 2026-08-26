@@ -7,18 +7,104 @@
 <section class="crawl-item-grid">
 
   {{#if isSkill}}
-  <label>Attribute
-    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
-      {{crOptions config.attributes system.attribute}}
+  <label>Skill type
+    <select name="system.skillType" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.skillTypes system.skillType}}
     </select>
   </label>
-  <label>Rank <input type="number" name="system.rank" value="{{system.rank}}" min="0" max="5" {{#unless editable}}disabled{{/unless}}></label>
+
+  {{#if isFeature}}
+  <label>Kind
+    <select name="system.kind" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.featureKinds system.kind}}
+    </select>
+  </label>
+  {{/if}}
+
+  {{#unless isFeature}}
+  <label>Attribute
+    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.skillAttributeChoices system.attribute}}
+    </select>
+  </label>
+  <label>Rank <input type="number" name="system.rank" value="{{system.rank}}" min="0" max="20" {{#unless editable}}disabled{{/unless}}></label>
   <label>Floor bonus <input type="number" name="system.floorBonus" value="{{system.floorBonus}}" {{#unless editable}}disabled{{/unless}}></label>
   <label>Check type
     <select name="system.checkType" {{#unless editable}}disabled{{/unless}}>
       {{crOptions config.skillCheckTypes system.checkType}}
     </select>
   </label>
+  {{/unless}}
+
+  {{#if isAttack}}
+  <label>Attack type
+    <select name="system.attackType" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.attackTypes system.attackType}}
+    </select>
+  </label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage type
+    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
+      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
+      {{crOptions config.damageTypes system.damageType}}
+    </select>
+  </label>
+  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="5 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
+  <label class="crawl-check">Grants Rank Damage Die
+    <input type="checkbox" name="system.rankDamageDie" {{checked system.rankDamageDie}} title="Only check this if the weapon's own book Upgrade text grants a Rank damage die at your current Rank" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  <label>Rank Damage Die override <input type="text" name="system.rankDamageDieFormula" value="{{system.rankDamageDieFormula}}" placeholder="auto (Table 37)" title="Leave blank to use Table 37 by Rank; set this if the Upgrade grants a different die (e.g. Aiming's flat 1d4)" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+
+  {{#if isSpell}}
+  <label>Attack type
+    <select name="system.attackType" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.attackTypes system.attackType}}
+    </select>
+  </label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d6" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage type
+    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
+      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
+      {{crOptions config.damageTypes system.damageType}}
+    </select>
+  </label>
+  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="30 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Mana cost <input type="number" name="system.manaCost" value="{{system.manaCost}}" min="0" title="Deducted automatically when cast" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Fan Point cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Inert until the Fan Points resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
+  <label class="crawl-check">Grants Rank Damage Die
+    <input type="checkbox" name="system.rankDamageDie" {{checked system.rankDamageDie}} title="Only check this if the spell's own book Upgrade text grants a Rank damage die at your current Rank" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  <label>Rank Damage Die override <input type="text" name="system.rankDamageDieFormula" value="{{system.rankDamageDieFormula}}" placeholder="auto (Table 37)" title="Leave blank to use Table 37 by Rank; set this if the Upgrade grants a different die (e.g. Aiming's flat 1d4)" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+
+  {{#if isUtility}}
+  <label>Boost scope
+    <select name="system.buffScope" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.buffScopes system.buffScope}}
+    </select>
+  </label>
+  {{#unless (crEq system.buffScope "none")}}
+  {{#if (crEq system.buffScope "specific")}}
+  <label>Boosted skill name <input type="text" name="system.buffSkillName" value="{{system.buffSkillName}}" placeholder="Exact Skill name" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+  <label class="crawl-check">Requires Disadvantage to use
+    <input type="checkbox" name="system.buffRequiresDisadvantage" {{checked system.buffRequiresDisadvantage}} title="Aiming's pattern: only usable if the boosted roll is made with Disadvantage" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  <label class="crawl-check">Adds this Skill's Rank to the boosted to-hit roll
+    <input type="checkbox" name="system.buffToHitBonus" {{checked system.buffToHitBonus}} {{#unless editable}}disabled{{/unless}}>
+  </label>
+  <label>Boost damage <input type="text" name="system.buffDamage" value="{{system.buffDamage}}" placeholder="1d4" title="Flat bonus dice added on a hit when this boost is used" {{#unless editable}}disabled{{/unless}}></label>
+  {{/unless}}
+  {{/if}}
+
+  {{#if isFeature}}
+  <label>Fan Point cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Inert until the Fan Points resource is built" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
   {{/if}}
 
   {{#if isGear}}
@@ -32,54 +118,25 @@
       {{crOptions config.gearSlots system.slot}}
     </select>
   </label>
-  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Damage type
-    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
-      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
-      {{crOptions config.damageTypes system.damageType}}
-    </select>
-  </label>
-  <label>Damage attribute
-    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
-      <option value="none"{{#if (crEq system.attribute "none")}} selected{{/if}}>None</option>
-      {{crOptions config.attributes system.attribute}}
-    </select>
-  </label>
-  <label>Attack skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Blades" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="5 ft" {{#unless editable}}disabled{{/unless}}></label>
-  <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
+  {{#if (crEq system.kind "weapon")}}
+  <label>Attack Skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Exact linked Skill name" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+  {{#if (crEq system.kind "armour")}}
   <label>Armour bonus <input type="number" name="system.armour" value="{{system.armour}}" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+  {{#if (crEq system.kind "consumable")}}
+  <label>Use formula <input type="text" name="system.useDamage" value="{{system.useDamage}}" placeholder="3d8" title="e.g. a Healing Potion's restore amount — leave blank for a flavor-only Use" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Use attribute
+    <select name="system.useAttribute" {{#unless editable}}disabled{{/unless}}>
+      <option value="none"{{#if (crEq system.useAttribute "none")}} selected{{/if}}>None</option>
+      {{crOptions config.attributes system.useAttribute}}
+    </select>
+  </label>
+  {{/if}}
   <label>Quantity <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" {{#unless editable}}disabled{{/unless}}></label>
   <label class="crawl-check">Equipped
     <input type="checkbox" name="system.equipped" {{checked system.equipped}} {{#unless editable}}disabled{{/unless}}>
   </label>
-  {{/if}}
-
-  {{#if isAbility}}
-  <label>Kind
-    <select name="system.kind" {{#unless editable}}disabled{{/unless}}>
-      {{crOptions config.abilityKinds system.kind}}
-    </select>
-  </label>
-  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d6" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Damage type
-    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
-      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
-      {{crOptions config.damageTypes system.damageType}}
-    </select>
-  </label>
-  <label>Attribute
-    <select name="system.attribute" {{#unless editable}}disabled{{/unless}}>
-      {{crOptions config.attributes system.attribute}}
-    </select>
-  </label>
-  <label>Linked skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Spellcraft" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="30 ft" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Mana cost <input type="number" name="system.manaCost" value="{{system.manaCost}}" min="0" title="Deducted automatically when cast" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Fan Point cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Inert until the Fan Points resource is built" {{#unless editable}}disabled{{/unless}}></label>
-  <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
   {{/if}}
 
 </section>

@@ -12,14 +12,12 @@ CRAWLER.attributes = {
 /** Attributes that can back a skill. */
 CRAWLER.skillAttributes = ["str", "dex", "con", "int", "cha"];
 
-/** The default skill list from the rules doc, created on demand per actor. */
-CRAWLER.defaultSkills = [
-  ["Brawl", "str"], ["Athletics", "str"], ["Heavy Weapons", "str"], ["Intimidate", "str"],
-  ["Blades", "dex"], ["Ranged", "dex"], ["Acrobatics", "dex"], ["Stealth", "dex"], ["Sleight of Hand", "dex"],
-  ["Endurance", "con"], ["Resilience", "con"],
-  ["Spellcraft", "int"], ["Tinker", "int"], ["Alchemy", "int"], ["Perception", "int"], ["Medicine", "int"], ["Lore", "int"],
-  ["Persuade", "cha"], ["Perform", "cha"], ["Deceive", "cha"], ["Command", "cha"], ["Haggle", "cha"]
-];
+/** Skill attribute choices, including "none" for passive/cross-skill skills (e.g. Aiming)
+ * that don't roll against an attribute of their own. */
+CRAWLER.skillAttributeChoices = {
+  none: "None",
+  ...CRAWLER.skillAttributes.reduce((o, k) => { o[k] = CRAWLER.attributes[k]; return o; }, {})
+};
 
 CRAWLER.gearKinds = {
   weapon: "Weapon",
@@ -28,14 +26,36 @@ CRAWLER.gearKinds = {
   misc: "Misc"
 };
 
-CRAWLER.abilityKinds = {
+/** Sub-category for skillType: "feature" skills (racial traits, class features, etc). */
+CRAWLER.featureKinds = {
   class: "Class Ability",
   race: "Racial Trait",
   achievement: "Achievement",
   sponsorship: "Sponsorship",
-  spell: "Spell",
   status: "Status Effect",
   curse: "Curse"
+};
+
+/** What a Skill fundamentally is — drives which fields the sheet shows. */
+CRAWLER.skillTypes = {
+  attack: "Attack",
+  spell: "Spell",
+  utility: "Utility",
+  feature: "Feature"
+};
+
+/** Melee vs Ranged, for Attack/Spell skills — also what a Utility Skill's buff scope matches against. */
+CRAWLER.attackTypes = {
+  melee: "Melee",
+  ranged: "Ranged"
+};
+
+/** What an Attack/Spell a Utility Skill's buff can apply to. */
+CRAWLER.buffScopes = {
+  none: "None",
+  melee: "Any Melee Attack",
+  ranged: "Any Ranged Attack",
+  specific: "A Specific Skill"
 };
 
 CRAWLER.sizes = {

@@ -40,93 +40,122 @@ export class CrawlerActor extends Actor {
     });
   }
 
-  async rollSkill(skillId, { dc = null, advantage = false, disadvantage = false } = {}) {
+  /** Post a skill's name and description to chat with no roll — used for Passive skills. */
+  async postSkillInfo(skillId) {
     const skill = this.items.get(skillId);
     if (!skill) return;
-    if (skill.system.checkType === "passive") {
-      return ui.notifications.warn(`${skill.name} is a passive skill and can't be rolled.`);
+    return Dice.postInfo({ actor: this, label: skill.name, flavor: skill.system.description, relativeTo: skill });
+  }
+
+  /**
+   * Roll a Skill — the single entry point for Attack Skills, Spells, and Utility Skills alike.
+   * Branches on the skill's own `skillType`/`checkType`: Features and Passive skills post their
+   * description instead of rolling; Spells check/deduct Mana; anything with checkType "evade"
+   * (a weapon Attack Skill or an attack Spell) resolves through the reactive-Evade attack flow;
+   * everything else is a plain Opposed/Unopposed check. `boostId` is another Utility Skill (the
+   * Aiming pattern) manually selected to buff this roll.
+   */
+  async rollSkill(skillId, { advantage = false, disadvantage = false, boostId = null } = {}) {
+    const skill = this.items.get(skillId);
+    if (!skill) return;
+
+    if (skill.system.skillType === "feature" || skill.system.checkType === "passive") {
+      return this.postSkillInfo(skillId);
     }
-    // Untrained Skill use (Rank 0) rolls with Disadvantage by default.
-    const untrained = skill.system.rank === 0;
-    const attrLabel = CRAWLER.attributes[skill.system.attribute];
-    return Dice.rollCheck({
-      actor: this,
-      label: `${skill.name} (${attrLabel})`,
-      mod: this.skillModifier(skill),
-      dc,
-      advantage,
-      disadvantage: disadvantage || untrained
-    });
-  }
+    if (this.isOnCooldown(skill)) return ui.notifications.warn(`${skill.name} is still on cooldown.`);
 
-  /** Attack with a gear item. Resolves against a Crawler target's reactive Evade, or a Mob's passive Evade. */
-  async rollAttack(itemId, { advantage = false, disadvantage = false } = {}) {
-    const item = this.items.get(itemId);
-    if (!item) return;
-    if (this.isOnCooldown(item)) return ui.notifications.warn(`${item.name} is still on cooldown.`);
-
-    const attrKey = item.system.attribute;
-    const attrMod = this.system.attributes?.[attrKey]?.mod ?? 0;
-    const skill = this.items.find(i => i.type === "skill" && i.name === item.system.skill);
-    const rank = skill ? skill.system.rank + skill.system.floorBonus : 0;
-    const injuryPenalty = this.system.injuryPenalty ?? 0;
-
-    const target = game.user.targets.first();
-    const size = Dice.targetSizeModifier(this, target);
-
-    await this.useCooldown(item);
-
-    return Dice.resolveAttack({
-      actor: this,
-      label: `Attack — ${item.name}`,
-      mod: attrMod + rank + injuryPenalty,
-      advantage: advantage || size.advantage,
-      disadvantage: disadvantage || size.disadvantage,
-      itemId: item.id,
-      rank,
-      bonusDamage: size.bonusDamage,
-      target
-    });
-  }
-
-  /** Cast a spell ability. Checks and deducts Mana before rolling; blocks the cast if short or on cooldown. */
-  async castAbility(itemId, { advantage = false, disadvantage = false } = {}) {
-    const item = this.items.get(itemId);
-    if (!item) return;
-    if (this.isOnCooldown(item)) return ui.notifications.warn(`${item.name} is still on cooldown.`);
-
-    const manaCost = item.system.manaCost ?? 0;
+    const manaCost = skill.system.skillType === "spell" ? (skill.system.manaCost ?? 0) : 0;
     const mana = this.system.mana;
-    if (mana && manaCost > mana.value) {
-      return ui.notifications.warn(`Not enough Mana to cast ${item.name} (needs ${manaCost}, has ${mana.value}).`);
+    if (manaCost && mana && manaCost > mana.value) {
+      return ui.notifications.warn(`Not enough Mana to cast ${skill.name} (needs ${manaCost}, has ${mana.value}).`);
     }
 
-    const attrKey = item.system.attribute;
-    const attrMod = this.system.attributes?.[attrKey]?.mod ?? 0;
-    const skill = this.items.find(i => i.type === "skill" && i.name === item.system.skill);
-    const rank = skill ? skill.system.rank + skill.system.floorBonus : 0;
+    const attrKey = skill.system.attribute;
+    const attrMod = (attrKey && attrKey !== "none") ? (this.system.attributes?.[attrKey]?.mod ?? 0) : 0;
+    const rank = skill.system.rank + skill.system.floorBonus;
     const injuryPenalty = this.system.injuryPenalty ?? 0;
+    // Untrained Skill use (Rank 0) rolls with Disadvantage by default.
+    let forceDisadvantage = skill.system.rank === 0;
 
-    const target = game.user.targets.first();
-    const size = Dice.targetSizeModifier(this, target);
+    let mod = attrMod + rank + injuryPenalty;
+    let extraDamage = "";
+    const boost = boostId ? this.items.get(boostId) : null;
+    if (boost) {
+      if (boost.system.buffToHitBonus) mod += boost.system.rank + boost.system.floorBonus;
+      if (boost.system.buffRequiresDisadvantage) forceDisadvantage = true;
+      extraDamage = boost.system.buffDamage || "";
+    }
 
     if (manaCost) await this.update({ "system.mana.value": mana.value - manaCost });
-    await this.useCooldown(item);
+    await this.useCooldown(skill);
 
-    return Dice.resolveAttack({
+    const isAttack = skill.system.checkType === "evade";
+    const attrLabel = CRAWLER.attributes[attrKey];
+    const label = isAttack
+      ? `${skill.system.skillType === "spell" ? "Cast" : "Attack"} — ${skill.name}`
+      : (attrLabel ? `${skill.name} (${attrLabel})` : skill.name);
+
+    if (isAttack) {
+      const target = game.user.targets.first();
+      const size = Dice.targetSizeModifier(this, target);
+      return Dice.resolveAttack({
+        actor: this,
+        label,
+        mod,
+        advantage: advantage || size.advantage,
+        disadvantage: disadvantage || forceDisadvantage || size.disadvantage,
+        itemId: skill.id,
+        rank,
+        bonusDamage: size.bonusDamage,
+        extraDamage,
+        target,
+        flavor: skill.system.description,
+        relativeTo: skill
+      });
+    }
+
+    return Dice.rollCheck({
       actor: this,
-      label: `Cast — ${item.name}`,
-      mod: attrMod + rank + injuryPenalty,
-      advantage: advantage || size.advantage,
-      disadvantage: disadvantage || size.disadvantage,
-      itemId: item.id,
-      rank,
-      bonusDamage: size.bonusDamage,
-      target
+      label,
+      mod,
+      advantage,
+      disadvantage: disadvantage || forceDisadvantage,
+      flavor: skill.system.description,
+      relativeTo: skill
     });
   }
 
-  /** Whether a Gear/Ability item is still on Cooldown. Only enforced while combat is active. */
+  /** Attack via a weapon Gear item's linked Skill (looked up by name) — same convenience button
+   *  the Gear tab has always had, just delegating to the merged Skill roll now. */
+  async rollAttackViaGear(itemId, options = {}) {
+    const gearItem = this.items.get(itemId);
+    if (!gearItem) return;
+    const skill = this.items.find(i => i.type === "skill" && i.name === gearItem.system.skill);
+    if (!skill) return ui.notifications.warn(`No Skill named "${gearItem.system.skill}" found for ${gearItem.name}.`);
+    return this.rollSkill(skill.id, options);
+  }
+
+  /** Use a consumable: decrements quantity, then rolls its effect (or just posts its
+   *  description to chat if it has none) — e.g. drinking a Healing Potion. */
+  async useItem(itemId) {
+    const item = this.items.get(itemId);
+    if (!item || item.type !== "gear") return;
+    if (item.system.quantity <= 0) return ui.notifications.warn(`No ${item.name} left.`);
+
+    await item.update({ "system.quantity": item.system.quantity - 1 });
+
+    const formula = item.system.useDamage;
+    if (!formula) {
+      return Dice.postInfo({ actor: this, label: `Use — ${item.name}`, flavor: item.system.description, relativeTo: item });
+    }
+
+    const attrKey = item.system.useAttribute;
+    const attrMod = (attrKey && attrKey !== "none") ? (this.system.attributes?.[attrKey]?.mod ?? 0) : 0;
+    const roll = await new Roll(`${formula} + @attr`, { attr: attrMod }).evaluate();
+    return Dice.postDamageCard({ actor: this, label: `Use — ${item.name}`, roll, crit: false });
+  }
+
+  /** Whether a Skill is still on Cooldown. Only enforced while combat is active. */
   isOnCooldown(item) {
     if (!game.combat?.started) return false;
     const until = item.getFlag(SYSTEM_ID, "cooldownUntil");
@@ -162,7 +191,8 @@ export class CrawlerActor extends Actor {
       evadeRoll,
       attackTotal: flags.attackTotal, attackCrit: flags.attackCrit, attackFumble: flags.attackFumble,
       attackerActorId: flags.actorId, attackerTokenId: flags.tokenId,
-      itemId: flags.itemId, mobAttackIndex: flags.mobAttackIndex, rank: flags.rank, bonusDamage: flags.bonusDamage
+      itemId: flags.itemId, mobAttackIndex: flags.mobAttackIndex, rank: flags.rank, bonusDamage: flags.bonusDamage,
+      extraDamage: flags.extraDamage
     });
     if (message.flags?.[SYSTEM_ID]?.doubleDamage) {
       await this.createEmbeddedDocuments("ActiveEffect", [{
@@ -338,19 +368,7 @@ export class CrawlerActor extends Actor {
     const item = this.items.get(itemId);
     if (!item) return;
     if (item.type === "skill") return this.rollSkill(itemId);
-    if (item.type === "gear") return this.rollAttack(itemId);
-    if (item.type === "ability") return this.castAbility(itemId);
-  }
-
-  /** Populate the standard skill list from the rules. Skips anything already present. */
-  async seedSkills() {
-    const existing = new Set(this.items.filter(i => i.type === "skill").map(i => i.name));
-    const toCreate = CRAWLER.defaultSkills
-      .filter(([name]) => !existing.has(name))
-      .map(([name, attribute]) => ({ name, type: "skill", system: { attribute, rank: 0 } }));
-    if (!toCreate.length) return ui.notifications.info("All standard skills are already on this sheet.");
-    await this.createEmbeddedDocuments("Item", toCreate);
-    ui.notifications.info(`Added ${toCreate.length} skills.`);
+    if (item.type === "gear") return this.rollAttackViaGear(itemId);
   }
 }
 
