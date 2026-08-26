@@ -5,6 +5,7 @@
     <input class="crawl-name" type="text" name="name" value="{{actor.name}}" {{#unless editable}}disabled{{/unless}}>
     <div class="crawl-ident-row">
       <label>Level <input type="number" name="system.level" value="{{system.level}}" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Floor <input type="number" name="system.floor" value="{{system.floor}}" min="1" {{#unless editable}}disabled{{/unless}}></label>
       <label class="crawl-check">Elite
         <input type="checkbox" name="system.elite" {{checked system.elite}} {{#unless editable}}disabled{{/unless}}>
       </label>
@@ -13,11 +14,14 @@
 </header>
 
 <section class="crawl-mob-grid">
-  <label>HP
+  <label>Health Bar Slots
     <span class="crawl-pair">
-      <input type="number" name="system.hp.value" value="{{system.hp.value}}" {{#unless editable}}disabled{{/unless}}>
-      <input type="number" name="system.hp.max" value="{{system.hp.max}}" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.hp.filledSlots" value="{{system.hp.filledSlots}}" min="0" title="Filled slots" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.hp.maxSlots" value="{{system.hp.maxSlots}}" min="1" title="Max slots" {{#unless editable}}disabled{{/unless}}>
     </span>
+  </label>
+  <label>Slot Value
+    <input type="number" name="system.hp.slotValue" value="{{system.hp.slotValue}}" min="0" title="Damage/healing per slot" {{#unless editable}}disabled{{/unless}}>
   </label>
   <label>Evade <input type="number" name="system.evade" value="{{system.evade}}" {{#unless editable}}disabled{{/unless}}></label>
   <label>Damage Resistance <input type="number" name="system.damageResistance" value="{{system.damageResistance}}" {{#unless editable}}disabled{{/unless}}></label>
@@ -42,8 +46,8 @@
       <input class="crawl-tiny" type="number" name="system.attacks.{{index}}.attack" value="{{atk.attack}}" {{#unless ../editable}}disabled{{/unless}}>
       <input class="crawl-tiny" type="text" name="system.attacks.{{index}}.damage" value="{{atk.damage}}" {{#unless ../editable}}disabled{{/unless}}>
       <span class="crawl-row-controls">
-        <button type="button" data-action="rollAttack" title="Roll Attack"><i class="fa-solid fa-dice-d20"></i></button>
-        <button type="button" data-action="rollDamage" title="Roll Damage"><i class="fa-solid fa-dice"></i></button>
+        <button type="button" data-action="rollAttack" title="Roll Attack (Shift = Advantage, Ctrl = Disadvantage)"><i class="fa-solid fa-dice-d20"></i></button>
+        <button type="button" data-action="rollDamage" title="Roll Damage (Shift = Critical)"><i class="fa-solid fa-dice"></i></button>
         {{#if ../editable}}<button type="button" data-action="removeAttack" title="Remove"><i class="fa-solid fa-trash"></i></button>{{/if}}
       </span>
     </li>

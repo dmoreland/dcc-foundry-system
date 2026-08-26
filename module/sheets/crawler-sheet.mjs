@@ -2,6 +2,11 @@ import { SYSTEM_ID, ActorSheetV2, HandlebarsMixin, enrich } from "../helpers/com
 import { RichTextMixin } from "../helpers/richtext.mjs";
 import { CRAWLER } from "../data/config.mjs";
 
+/** Shift-click = Advantage, Ctrl-click = Disadvantage (they cancel if both are held). */
+function rollModifiers(event) {
+  return { advantage: event.shiftKey, disadvantage: event.ctrlKey };
+}
+
 export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   tab = "skills";
@@ -29,7 +34,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       createEffect: CrawlerSheet._onCreateEffect,
       editEffect: CrawlerSheet._onEditEffect,
       toggleEffect: CrawlerSheet._onToggleEffect,
-      deleteEffect: CrawlerSheet._onDeleteEffect
+      deleteEffect: CrawlerSheet._onDeleteEffect,
+      applyInjury: CrawlerSheet._onApplyInjury
     }
   };
 
@@ -63,13 +69,15 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
         kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind,
         slotLabel: CRAWLER.gearSlots[item.system.slot] ?? item.system.slot,
         damageTypeLabel: CRAWLER.damageTypes[item.system.damageType] ?? "",
-        pinned: (system.hotlist ?? []).includes(item.id) }));
+        pinned: (system.hotlist ?? []).includes(item.id),
+        cooldownRemaining: this._cooldownRemaining(item) }));
 
     const abilities = actor.items.filter(i => i.type === "ability")
       .map(item => ({ id: item.id, name: item.name, img: item.img, ...item.system,
         kindLabel: CRAWLER.abilityKinds[item.system.kind] ?? item.system.kind,
         damageTypeLabel: CRAWLER.damageTypes[item.system.damageType] ?? "",
-        pinned: (system.hotlist ?? []).includes(item.id) }));
+        pinned: (system.hotlist ?? []).includes(item.id),
+        cooldownRemaining: this._cooldownRemaining(item) }));
 
     // One occupant per exclusive slot (head/torso/arms/hands/legs/feet); accessories stack to 10.
     const exclusiveSlots = ["head", "torso", "arms", "hands", "legs", "feet"];
@@ -116,7 +124,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
         key, label, abbr: key.toUpperCase(),
         value: system.attributes[key].value,
         bonus: system.attributes[key].bonus,
-        total: system.attributes[key].total
+        total: system.attributes[key].total,
+        mod: system.attributes[key].mod
       })),
       sizes: CRAWLER.sizes,
       skills,
@@ -128,7 +137,10 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       otherAbilities: abilities.filter(a => a.kind !== "spell"),
       hotlist,
       effects,
-      hpPct: Math.clamp(Math.round((system.hp.value / Math.max(1, system.hp.max)) * 100), 0, 100),
+      hpSlots: Array.from({ length: 10 }, (_, i) => ({
+        filled: i < system.hp.filledSlots,
+        temp: i >= system.hp.filledSlots && i < system.hp.filledSlots + system.hp.tempSlots
+      })),
       manaPct: Math.clamp(Math.round((system.mana.value / Math.max(1, system.mana.max)) * 100), 0, 100),
       editing: {
         biography: this.editingFields.has("biography"),
@@ -139,6 +151,15 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
         gmNotes: isGM ? await enrich(system.gmNotes, { relativeTo: actor }) : ""
       }
     });
+  }
+
+  /** Rounds left on an item's Cooldown, or null if it's not on cooldown (or combat isn't active). */
+  _cooldownRemaining(item) {
+    if (!game.combat?.started) return null;
+    const until = item.getFlag(SYSTEM_ID, "cooldownUntil");
+    if (until === undefined) return null;
+    const remaining = until - game.combat.round;
+    return remaining > 0 ? remaining : null;
   }
 
   /** Embedded item fields can't ride the document form, so handle them directly. */
@@ -168,15 +189,15 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
   }
 
   static async _onRollAttribute(event, target) {
-    return this.document.rollAttribute(target.dataset.key);
+    return this.document.rollAttribute(target.dataset.key, rollModifiers(event));
   }
 
   static async _onRollSkill(event, target) {
-    return this.document.rollSkill(target.closest("[data-item-id]").dataset.itemId);
+    return this.document.rollSkill(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
   }
 
   static async _onRollAttack(event, target) {
-    return this.document.rollAttack(target.closest("[data-item-id]").dataset.itemId);
+    return this.document.rollAttack(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
   }
 
   static async _onAdjustRank(event, target) {
@@ -192,7 +213,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
   }
 
   static async _onCastAbility(event, target) {
-    return this.document.castAbility(target.closest("[data-item-id]").dataset.itemId);
+    return this.document.castAbility(target.closest("[data-item-id]").dataset.itemId, rollModifiers(event));
   }
 
   static async _onPinItem(event, target) {
@@ -261,5 +282,9 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       content: `<p>Delete <strong>${effect.name}</strong>?</p>`
     });
     if (confirmed) await effect.delete();
+  }
+
+  static async _onApplyInjury(event, target) {
+    return this.document.applyInjury(target.dataset.severity);
   }
 }

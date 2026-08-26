@@ -53,12 +53,12 @@ export class MobSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   static async _onAttack(event, target) {
     const index = Number(target.closest("[data-index]").dataset.index);
-    return this.document.rollMobAttack(index);
+    return this.document.rollMobAttack(index, { advantage: event.shiftKey, disadvantage: event.ctrlKey });
   }
 
   static async _onDamage(event, target) {
     const index = Number(target.closest("[data-index]").dataset.index);
-    return this.document.rollMobDamage(index);
+    return this.document.rollMobDamage(index, { crit: event.shiftKey });
   }
 
   static async _onAddAttack() {

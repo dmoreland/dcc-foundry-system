@@ -5,6 +5,7 @@
     <input class="crawl-name" type="text" name="name" value="{{actor.name}}" {{#unless editable}}disabled{{/unless}}>
     <div class="crawl-ident-row">
       <label>Level <input type="number" name="system.level" value="{{system.level}}" min="1" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Floor <input type="number" name="system.floor" value="{{system.floor}}" min="1" title="Current World Dungeon floor — feeds Evade and other Difficulty formulas" {{#unless editable}}disabled{{/unless}}></label>
       <label>Race <input type="text" name="system.details.race" value="{{system.details.race}}" {{#unless editable}}disabled{{/unless}}></label>
       <label>Class <input type="text" name="system.details.className" value="{{system.details.className}}" {{#unless editable}}disabled{{/unless}}></label>
     </div>
@@ -18,12 +19,13 @@
 <section class="crawl-attributes">
   {{#each attributes}}
   <div class="crawl-attr">
-    <button type="button" class="crawl-attr-roll" data-action="rollAttribute" data-key="{{this.key}}" title="Roll {{this.label}}">
+    <button type="button" class="crawl-attr-roll" data-action="rollAttribute" data-key="{{this.key}}" title="Roll {{this.label}} (Shift = Advantage, Ctrl = Disadvantage)">
       <span class="crawl-attr-abbr">{{this.abbr}}</span>
-      <span class="crawl-attr-total">{{crSign this.total}}</span>
+      <span class="crawl-attr-total">{{crSign this.mod}}</span>
+      <span class="crawl-attr-score">{{this.total}}</span>
     </button>
     <div class="crawl-attr-inputs">
-      <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="Base" {{#unless ../editable}}disabled{{/unless}}>
+      <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="Base score" {{#unless ../editable}}disabled{{/unless}}>
       <input type="number" name="system.attributes.{{this.key}}.bonus" value="{{this.bonus}}" title="Bonus from race, class, elixirs" {{#unless ../editable}}disabled{{/unless}}>
     </div>
     <span class="crawl-attr-label">{{this.label}}</span>
@@ -33,13 +35,24 @@
 
 <section class="crawl-vitals">
   <div class="crawl-bar crawl-bar-hp">
-    <span class="crawl-bar-label">Hit Points</span>
-    <div class="crawl-bar-track"><div class="crawl-bar-fill" style="width: {{hpPct}}%"></div></div>
+    <span class="crawl-bar-label">Health Bar</span>
+    <div class="crawl-hp-slots">
+      {{#each hpSlots}}
+      <span class="crawl-hp-slot {{#if this.filled}}filled{{/if}} {{#if this.temp}}temp{{/if}}"></span>
+      {{/each}}
+    </div>
     <div class="crawl-bar-values">
-      <input type="number" name="system.hp.value" value="{{system.hp.value}}" {{#unless editable}}disabled{{/unless}}>
-      <span>/ {{system.hp.max}}</span>
+      <input type="number" name="system.hp.filledSlots" value="{{system.hp.filledSlots}}" min="0" max="10" title="Filled slots" {{#unless editable}}disabled{{/unless}}>
+      <span>/ 10 slots ({{system.hp.slotValue}} ea.)</span>
     </div>
   </div>
+
+  {{#if editable}}
+  <div class="crawl-injury-buttons">
+    <button type="button" data-action="applyInjury" data-severity="minor" title="Apply a -2 penalty to all Checks">Minor Injury</button>
+    <button type="button" data-action="applyInjury" data-severity="major" title="Apply a -5 penalty to all Checks">Major Injury</button>
+  </div>
+  {{/if}}
 
   <div class="crawl-bar crawl-bar-mana">
     <span class="crawl-bar-label">Mana</span>
@@ -87,7 +100,7 @@
     <li class="crawl-row crawl-row-skill draggable" data-item-id="{{this.id}}">
       <span class="crawl-row-name-wrap">
         {{#if this.rollable}}
-        <button type="button" class="crawl-row-name" data-action="rollSkill">{{this.name}}</button>
+        <button type="button" class="crawl-row-name" data-action="rollSkill" title="Roll {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)">{{this.name}}</button>
         {{else}}
         <span class="crawl-row-name crawl-row-name-static">{{this.name}}</span>
         {{/if}}
@@ -142,9 +155,12 @@
   <ol class="crawl-list">
     {{#each weapons}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
-      <button type="button" class="crawl-row-name" data-action="rollAttack" title="Attack with {{this.name}}">{{this.name}}</button>
+      <button type="button" class="crawl-row-name" data-action="rollAttack" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
       <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
-      <span class="crawl-muted">{{this.skill}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}</span>
+      <span class="crawl-muted">
+        {{this.skill}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
+        {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
+      </span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
         <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">
@@ -197,9 +213,12 @@
   <ol class="crawl-list">
     {{#each spells}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
-      <button type="button" class="crawl-row-name" data-action="castAbility" title="Cast {{this.name}}">{{this.name}}</button>
+      <button type="button" class="crawl-row-name" data-action="castAbility" title="Cast {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
       <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
-      <span class="crawl-muted">{{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}</span>
+      <span class="crawl-muted">
+        {{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
+        {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
+      </span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
         <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">

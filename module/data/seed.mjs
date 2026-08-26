@@ -5,22 +5,22 @@
  */
 
 const MOBS = [
-  { name: "Corridor Crab", level: 1, hp: 15, evade: 12, damageResistance: 1, gold: "1d6",
+  { name: "Corridor Crab", level: 1, maxSlots: 5, slotValue: 3, evade: 12, damageResistance: 1, gold: "1d6",
     attacks: [{ name: "Pincer", attack: 3, damage: "1d6" }],
     traits: "<p><strong>Shell.</strong> The first hit it takes each fight deals half damage.</p>" },
-  { name: "Grubby Goblin Tout", level: 2, hp: 20, evade: 13, damageResistance: 0, gold: "3d6",
+  { name: "Grubby Goblin Tout", level: 2, maxSlots: 5, slotValue: 4, evade: 13, damageResistance: 0, gold: "3d6",
     attacks: [{ name: "Sales Pitch", attack: 4, damage: "1d6+2" }],
     traits: "<p><strong>Hard Sell.</strong> Would rather sell you something mid-fight than actually fight.</p>" },
-  { name: "Mimic Vending Machine", level: 3, hp: 40, evade: 11, damageResistance: 2, gold: "4d6",
+  { name: "Mimic Vending Machine", level: 3, maxSlots: 5, slotValue: 8, evade: 11, damageResistance: 2, gold: "4d6",
     attacks: [{ name: "Bite", attack: 5, damage: "2d6" }],
     traits: "<p><strong>Swallow.</strong> On a critical hit it swallows a Crawler. Athletics DC 15 to escape.</p>" },
-  { name: "Sponsored Brawler", level: 4, hp: 55, evade: 15, damageResistance: 1, gold: "6d6",
+  { name: "Sponsored Brawler", level: 4, maxSlots: 5, slotValue: 11, evade: 15, damageResistance: 1, gold: "6d6",
     attacks: [{ name: "Haymaker", attack: 6, damage: "2d8" }],
     traits: "<p><strong>Fan Base.</strong> Deals +2 damage while anyone is watching. Someone is always watching.</p>" },
-  { name: "Screaming Hallway Choir", level: 5, hp: 30, evade: 14, damageResistance: 0, gold: "0",
+  { name: "Screaming Hallway Choir", level: 5, maxSlots: 5, slotValue: 6, evade: 14, damageResistance: 0, gold: "0",
     attacks: [{ name: "Discordant Wail", attack: 0, damage: "0" }],
     traits: "<p><strong>Aura.</strong> Resilience DC 14 each round or Shaken. Ignore them and they follow you.</p>" },
-  { name: "The Producer's Darling", level: 6, hp: 180, evade: 17, damageResistance: 3, gold: "10d10", elite: true,
+  { name: "The Producer's Darling", level: 6, maxSlots: 10, slotValue: 18, evade: 17, damageResistance: 3, gold: "10d10", elite: true,
     attacks: [
       { name: "Slam", attack: 8, damage: "3d8" },
       { name: "Backhand", attack: 8, damage: "1d8" }
@@ -48,7 +48,7 @@ export async function seedWorld() {
     type: "mob",
     system: {
       level: m.level,
-      hp: { value: m.hp, max: m.hp },
+      hp: { maxSlots: m.maxSlots, filledSlots: m.maxSlots, slotValue: m.slotValue },
       evade: m.evade,
       damageResistance: m.damageResistance,
       attacks: m.attacks,

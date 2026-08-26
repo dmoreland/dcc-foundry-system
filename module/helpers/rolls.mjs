@@ -1,8 +1,8 @@
 import { SYSTEM_ID, render } from "./compat.mjs";
+import { CRAWLER } from "../data/config.mjs";
 
-/** Evade of the first targeted token, or null if nothing is targeted. */
-export function targetEvade() {
-  const target = game.user.targets.first();
+/** Evade of a target (defaults to the first user-targeted token), or null if there is none. */
+export function targetEvade(target = game.user.targets.first()) {
   if (!target) return null;
   const sys = target.actor?.system;
   if (sys?.evade === undefined) return null;
@@ -10,12 +10,52 @@ export function targetEvade() {
 }
 
 /**
- * The core resolution roll: d20 + modifier, optionally against a DC.
- * Returns the created ChatMessage so callers can read the total from its flags.
+ * Advantage/Disadvantage size gap (Table 9: Creature Size). A 4+ size-class gap grants the
+ * smaller side Advantage when attacking up, and gives the larger side Disadvantage (offset by
+ * bonus damage) when attacking down. Returns a no-op object if there's no size gap or no target.
  */
-export async function rollCheck({ actor, label, mod = 0, dc = null, itemId = null, showDamage = false }) {
-  const roll = await new Roll("1d20 + @mod", { mod }).evaluate();
-  const die = roll.dice[0]?.results?.find(r => r.active)?.result ?? null;
+export function targetSizeModifier(actor, target = game.user.targets.first()) {
+  const none = { advantage: false, disadvantage: false, bonusDamage: 0 };
+  const attackerSize = CRAWLER.sizeValues[actor?.system?.size];
+  const targetSize = CRAWLER.sizeValues[target?.actor?.system?.size];
+  if (attackerSize === undefined || targetSize === undefined) return none;
+
+  const gap = targetSize - attackerSize;
+  if (gap >= 4) return { advantage: true, disadvantage: false, bonusDamage: 0 };
+  if (gap <= -4) return { advantage: false, disadvantage: true, bonusDamage: attackerSize };
+  return none;
+}
+
+/** Double the number of dice in each NdX term of a formula (crit rule), leaving flat modifiers alone. */
+export function doubleDiceCount(formula) {
+  return String(formula ?? "").replace(/(\d+)d(\d+)/gi, (match, count, size) => `${Number(count) * 2}d${size}`);
+}
+
+function d20Formula(advantage, disadvantage) {
+  if (advantage && !disadvantage) return "2d20kh";
+  if (disadvantage && !advantage) return "2d20kl";
+  return "1d20";
+}
+
+function activeDie(roll) {
+  return roll.dice[0]?.results?.find(r => r.active)?.result ?? null;
+}
+
+function signed(mod) {
+  return mod >= 0 ? `+${mod}` : `${mod}`;
+}
+
+/**
+ * The core resolution roll: d20 (or 2d20kh/kl for Advantage/Disadvantage) + modifier,
+ * optionally against a DC. Returns the created ChatMessage so callers can read the total
+ * from its flags.
+ */
+export async function rollCheck({
+  actor, label, mod = 0, dc = null, itemId = null, mobAttackIndex = null,
+  rank = 0, bonusDamage = 0, showDamage = false, advantage = false, disadvantage = false
+}) {
+  const roll = await new Roll(`${d20Formula(advantage, disadvantage)} + @mod`, { mod }).evaluate();
+  const die = activeDie(roll);
   const crit = die === 20;
   const fumble = die === 1;
   const success = dc === null ? null : roll.total >= dc;
@@ -24,14 +64,14 @@ export async function rollCheck({ actor, label, mod = 0, dc = null, itemId = nul
     label,
     actorName: actor.name,
     mod,
-    modSign: mod >= 0 ? `+${mod}` : `${mod}`,
+    modSign: signed(mod),
     total: roll.total,
     die,
     dc,
     success,
     crit,
     fumble,
-    showDamage: showDamage && !!itemId,
+    showDamage: showDamage && (!!itemId || mobAttackIndex !== null),
     tooltip: await roll.getTooltip()
   });
 
@@ -41,29 +81,124 @@ export async function rollCheck({ actor, label, mod = 0, dc = null, itemId = nul
     rolls: [roll],
     sound: CONFIG.sounds.dice,
     flags: {
-      [SYSTEM_ID]: { actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, total: roll.total, crit, fumble }
+      [SYSTEM_ID]: {
+        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex,
+        rank, bonusDamage, total: roll.total, crit, fumble
+      }
     }
   });
 }
 
-/** Weapon damage. A crit adds maximum weapon damage on top of the rolled dice. */
-export async function rollDamage({ actor, item, crit = false }) {
+/**
+ * Resolve an attack against a target. Mobs never roll their own defense — attacking a Mob
+ * (or attacking with no target) resolves immediately against its passive Evade DC. Attacking
+ * a Crawler instead posts a pending card: the defender chooses to roll Evade or take the hit.
+ */
+export async function resolveAttack({
+  actor, label, mod, advantage = false, disadvantage = false,
+  itemId = null, mobAttackIndex = null, rank = 0, bonusDamage = 0, target = game.user.targets.first()
+}) {
+  if (target?.actor?.type === "crawler") {
+    return postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, target });
+  }
+  return rollCheck({
+    actor, label, mod, advantage, disadvantage,
+    dc: targetEvade(target), itemId, mobAttackIndex, rank, bonusDamage, showDamage: true
+  });
+}
+
+async function postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, target }) {
+  const roll = await new Roll(`${d20Formula(advantage, disadvantage)} + @mod`, { mod }).evaluate();
+  const die = activeDie(roll);
+  const crit = die === 20;
+  const fumble = die === 1;
+
+  const content = await render(`systems/${SYSTEM_ID}/templates/chat/attack-pending.hbs`, {
+    label,
+    actorName: actor.name,
+    targetName: target.actor.name,
+    mod,
+    modSign: signed(mod),
+    total: roll.total,
+    die,
+    crit,
+    fumble,
+    tooltip: await roll.getTooltip()
+  });
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    rolls: [roll],
+    sound: CONFIG.sounds.dice,
+    flags: {
+      [SYSTEM_ID]: {
+        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex, rank, bonusDamage,
+        attackTotal: roll.total, attackCrit: crit, attackFumble: fumble,
+        targetActorId: target.actor.id, targetTokenId: target.document?.id ?? target.id,
+        awaitingEvade: true
+      }
+    }
+  });
+}
+
+/**
+ * Post the result of a defender's response to a pending attack (either an Evade roll or
+ * taking the hit outright). `evadeRoll` is null when the defender chose not to roll.
+ */
+export async function postEvadeResult({
+  defenderName, evadeRoll, attackTotal, attackCrit, attackFumble, label,
+  attackerActorId, attackerTokenId, itemId, mobAttackIndex, rank, bonusDamage
+}) {
+  let hit, naturalOne = false, evadeTotal = null, evadeDie = null;
+
+  if (attackFumble) {
+    hit = false;
+  } else if (attackCrit) {
+    hit = true;
+  } else if (evadeRoll) {
+    evadeDie = activeDie(evadeRoll);
+    evadeTotal = evadeRoll.total;
+    naturalOne = evadeDie === 1;
+    hit = naturalOne || attackTotal >= evadeTotal;
+  } else {
+    hit = true;
+  }
+
+  const content = await render(`systems/${SYSTEM_ID}/templates/chat/evade-card.hbs`, {
+    defenderName, label, attackTotal, hit, naturalOne,
+    rolled: !!evadeRoll, evadeTotal, evadeDie,
+    crit: attackCrit,
+    showDamage: hit && (!!itemId || mobAttackIndex !== null)
+  });
+
+  return ChatMessage.create({
+    content,
+    rolls: evadeRoll ? [evadeRoll] : [],
+    sound: evadeRoll ? CONFIG.sounds.dice : undefined,
+    flags: {
+      [SYSTEM_ID]: {
+        actorId: attackerActorId, tokenId: attackerTokenId,
+        itemId, mobAttackIndex, rank, bonusDamage,
+        doubleDamage: naturalOne
+      }
+    }
+  });
+}
+
+/** Weapon/spell damage. A crit doubles the number of base damage dice; Rank Damage Dice and
+ * flat bonus damage (from size) are added afterward, undoubled. */
+export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDamage = 0, doubleDamage = false }) {
   const attrKey = item.system.attribute;
-  const attrMod = (attrKey && attrKey !== "none") ? (actor.system.attributes?.[attrKey]?.total ?? 0) : 0;
-  const die = item.system.damage || "1d6";
+  const attrMod = (attrKey && attrKey !== "none") ? (actor.system.attributes?.[attrKey]?.mod ?? 0) : 0;
+  const baseDie = item.system.damage || "1d6";
+  const die = crit ? doubleDiceCount(baseDie) : baseDie;
+  const rankDie = CRAWLER.rankDamageDie(rank);
 
   let formula = `${die} + @attr`;
-  let critBonus = 0;
-  if (crit) {
-    try {
-      const max = await new Roll(die).evaluate({ maximize: true });
-      critBonus = max.total;
-    } catch (err) {
-      critBonus = 0;
-      formula = `(${die}) * 2 + @attr`;
-    }
-    if (critBonus) formula = `${die} + ${critBonus} + @attr`;
-  }
+  if (rankDie) formula += ` + ${rankDie}`;
+  if (bonusDamage) formula += ` + ${bonusDamage}`;
+  if (doubleDamage) formula = `(${formula}) * 2`;
 
   const roll = await new Roll(formula, { attr: attrMod }).evaluate();
   return postDamageCard({
@@ -99,7 +234,7 @@ export async function postDamageCard({ actor, label, roll, crit = false }) {
 /**
  * Apply an amount to every selected token the user owns.
  * `multiplier` scales the amount: 1 full, 0.5 half, 2 double, -1 to heal.
- * Posts a single chat notice summarising the result.
+ * Posts a single chat notice summarising the result, in Health Bar slots.
  */
 export async function applyToSelected(amount, multiplier = 1) {
   const tokens = canvas.tokens?.controlled ?? [];
@@ -118,7 +253,7 @@ export async function applyToSelected(amount, multiplier = 1) {
   const rows = results.map(r => {
     const change = Math.abs(r.after - r.before);
     const tail = r.after === 0 && !healing ? " — down" : "";
-    return `<li><strong>${r.name}</strong> ${healing ? "heals" : "takes"} ${change} (${r.before} → ${r.after} HP)${tail}</li>`;
+    return `<li><strong>${r.name}</strong> ${healing ? "heals" : "loses"} ${change} slot${change === 1 ? "" : "s"} (${r.before} → ${r.after}/${r.maxSlots})${tail}</li>`;
   }).join("");
 
   return ChatMessage.create({

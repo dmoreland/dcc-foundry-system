@@ -1,0 +1,28 @@
+<div class="crawl-card {{#if crit}}is-crit{{/if}}">
+  <header class="crawl-card-head">
+    <span class="crawl-tab">{{defenderName}}</span>
+    <h4>{{label}}</h4>
+  </header>
+
+  {{#if rolled}}
+  <div class="crawl-card-result" title="d20 {{evadeDie}}">
+    <span class="crawl-card-total">{{evadeTotal}}</span>
+    <span class="crawl-card-detail">Evade [{{evadeDie}}] — vs attack {{attackTotal}}</span>
+  </div>
+  {{else}}
+  <div class="crawl-card-detail">Took the hit — no Evade rolled (attack {{attackTotal}})</div>
+  {{/if}}
+
+  <div class="crawl-card-verdict {{#if hit}}hit{{else}}miss{{/if}}">
+    {{#if hit}}Hit!{{else}}Evaded!{{/if}}
+  </div>
+
+  {{#if naturalOne}}<div class="crawl-card-banner">Natural 1 on Evade — double damage, Major Injury applied</div>{{/if}}
+
+  {{#if showDamage}}
+  <div class="crawl-card-buttons">
+    <button type="button" data-crawl-action="damage">Damage</button>
+    {{#if crit}}<button type="button" data-crawl-action="crit">Critical damage</button>{{/if}}
+  </div>
+  {{/if}}
+</div>
