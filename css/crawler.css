@@ -172,6 +172,29 @@
 .crawl-stat span { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--crawl-muted); }
 .crawl-stat strong { font-family: var(--crawl-mono); font-size: 16px; }
 .crawl-stat input, .crawl-stat select { width: 100%; padding: 1px 3px; font-size: 13px; }
+.crawl-stat-roll {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.crawl-stat-roll:hover:not(:disabled) { background: transparent; }
+.crawl-stat-roll:hover:not(:disabled) strong { color: var(--crawl-brand); }
+.crawl-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--crawl-muted);
+  font-size: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: help;
+}
 
 .crawl-actions { display: flex; gap: 6px; }
 .crawl-actions button { flex: 1; padding: 5px; font-size: 12px; }
@@ -352,6 +375,7 @@
 .crawl-card-result { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
 .crawl-card-total { font-family: ui-monospace, Menlo, monospace; font-size: 30px; font-weight: 700; line-height: 1; }
 .crawl-card-detail { font-size: 11px; color: #9c8fa8; font-family: ui-monospace, Menlo, monospace; }
+.crawl-card-dr { font-size: 11px; color: #9c8fa8; margin-top: 4px; }
 .crawl-card-verdict { font-size: 12px; margin-top: 4px; }
 .crawl-card-verdict.hit { color: #7fd4a8; }
 .crawl-card-verdict.miss { color: #9c8fa8; }

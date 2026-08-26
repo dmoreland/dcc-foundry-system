@@ -168,6 +168,15 @@ export class CrawlerActor extends Actor {
     await item.setFlag(SYSTEM_ID, "cooldownUntil", game.combat.round + item.system.cooldown);
   }
 
+  /** Roll Evade on demand, outside the reactive attack flow — e.g. clicking it on your own
+   *  sheet to check your odds. Posts a plain check card with no target/hit resolution; the
+   *  real defensive roll happens via rollEvade(flags) below, triggered from a pending attack. */
+  async rollEvadeCheck({ advantage = false, disadvantage = false } = {}) {
+    const dexMod = this.system.attributes?.dex?.mod ?? 0;
+    const mod = dexMod + (this.system.evade?.bonus ?? 0) + (this.system.injuryPenalty ?? 0);
+    return Dice.rollCheck({ actor: this, label: "Evade", mod, advantage, disadvantage });
+  }
+
   /**
    * Roll a reactive Evade check against a pending attack (posted by Dice.resolveAttack when
    * the target is a Crawler), or skip it and take the hit automatically.

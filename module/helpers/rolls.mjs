@@ -235,16 +235,27 @@ export async function postInfo({ actor, label, flavor = "", relativeTo = actor }
 
 /**
  * Render and post a damage card. The card carries Apply buttons that damage or heal
- * the currently selected token(s). Returns the created ChatMessage.
+ * the currently selected token(s) — those already recompute each target's own Damage
+ * Resistance individually, this just previews it for whoever's currently targeted.
+ * Returns the created ChatMessage.
  */
 export async function postDamageCard({ actor, label, roll, crit = false }) {
+  const target = game.user.targets.first();
+  const targetSys = target?.actor?.system;
+  const dr = targetSys?.damageResistance;
+  const targetDR = dr === undefined ? null : (typeof dr === "object" ? dr.value : dr);
+  const afterDR = targetDR === null ? null : Math.max(0, roll.total - targetDR);
+
   const content = await render(`systems/${SYSTEM_ID}/templates/chat/damage-card.hbs`, {
     label,
     actorName: actor.name,
     total: roll.total,
     formula: roll.formula,
     crit,
-    tooltip: await roll.getTooltip()
+    tooltip: await roll.getTooltip(),
+    targetName: target?.actor?.name ?? null,
+    targetDR,
+    afterDR
   });
 
   return ChatMessage.create({

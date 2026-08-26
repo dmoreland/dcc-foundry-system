@@ -16,73 +16,6 @@
   </div>
 </header>
 
-<section class="crawl-attributes">
-  {{#each attributes}}
-  <div class="crawl-attr">
-    <button type="button" class="crawl-attr-roll" data-action="rollAttribute" data-key="{{this.key}}" title="Roll {{this.label}} (Shift = Advantage, Ctrl = Disadvantage)">
-      <span class="crawl-attr-abbr">{{this.abbr}}</span>
-      <span class="crawl-attr-total">{{crSign this.mod}}</span>
-      <span class="crawl-attr-score">{{this.total}}</span>
-    </button>
-    <div class="crawl-attr-inputs">
-      <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="Base score" {{#unless ../editable}}disabled{{/unless}}>
-      <input type="number" name="system.attributes.{{this.key}}.bonus" value="{{this.bonus}}" title="Bonus from race, class, elixirs" {{#unless ../editable}}disabled{{/unless}}>
-    </div>
-    <span class="crawl-attr-label">{{this.label}}</span>
-  </div>
-  {{/each}}
-</section>
-
-<section class="crawl-vitals">
-  <div class="crawl-bar crawl-bar-hp">
-    <span class="crawl-bar-label">Health Bar</span>
-    <div class="crawl-hp-slots">
-      {{#each hpSlots}}
-      <span class="crawl-hp-slot {{#if this.filled}}filled{{/if}} {{#if this.temp}}temp{{/if}}"></span>
-      {{/each}}
-    </div>
-    <div class="crawl-bar-values">
-      <input type="number" name="system.hp.filledSlots" value="{{system.hp.filledSlots}}" min="0" max="10" title="Filled slots" {{#unless editable}}disabled{{/unless}}>
-      <span>/ 10 slots ({{system.hp.slotValue}} ea.)</span>
-    </div>
-  </div>
-
-  {{#if editable}}
-  <div class="crawl-injury-buttons">
-    <button type="button" data-action="applyInjury" data-severity="minor" title="Apply a -2 penalty to all Checks">Minor Injury</button>
-    <button type="button" data-action="applyInjury" data-severity="major" title="Apply a -5 penalty to all Checks">Major Injury</button>
-  </div>
-  {{/if}}
-
-  <div class="crawl-bar crawl-bar-mana">
-    <span class="crawl-bar-label">Mana</span>
-    <div class="crawl-bar-track"><div class="crawl-bar-fill" style="width: {{manaPct}}%"></div></div>
-    <div class="crawl-bar-values">
-      <input type="number" name="system.mana.value" value="{{system.mana.value}}" {{#unless editable}}disabled{{/unless}}>
-      <span>/ {{system.mana.max}}</span>
-    </div>
-  </div>
-
-  <div class="crawl-stat-grid crawl-stat-grid-3">
-    <div class="crawl-stat"><span>Evade</span><strong>{{system.evade.value}}</strong></div>
-    <div class="crawl-stat"><span>Damage Resistance</span><strong>{{system.damageResistance.value}}</strong></div>
-    <div class="crawl-stat"><span>Gold</span>
-      <input type="number" name="system.gold" value="{{system.gold}}" {{#unless editable}}disabled{{/unless}}></div>
-  </div>
-
-  <div class="crawl-stat-grid crawl-stat-grid-3">
-    <div class="crawl-stat"><span>Move</span>
-      <input type="number" name="system.move" value="{{system.move}}" {{#unless editable}}disabled{{/unless}}></div>
-    <div class="crawl-stat"><span>Step</span>
-      <input type="number" name="system.step" value="{{system.step}}" {{#unless editable}}disabled{{/unless}}></div>
-    <div class="crawl-stat"><span>Size</span>
-      <select name="system.size" {{#unless editable}}disabled{{/unless}}>
-        {{crOptions sizes system.size}}
-      </select>
-    </div>
-  </div>
-</section>
-
 <nav class="crawl-tabs">
   {{#each tabs}}
   <button type="button" class="crawl-tab-btn {{#if (crEq this.id ../tab)}}active{{/if}}" data-action="showTab" data-tab="{{this.id}}">{{this.label}}</button>
@@ -90,6 +23,78 @@
 </nav>
 
 <section class="crawl-body">
+
+  {{#if (crEq tab "character")}}
+  <div class="crawl-vitals">
+    <div class="crawl-bar crawl-bar-hp">
+      <span class="crawl-bar-label">Health Bar</span>
+      <div class="crawl-hp-slots">
+        {{#each hpSlots}}
+        <span class="crawl-hp-slot {{#if this.filled}}filled{{/if}} {{#if this.temp}}temp{{/if}}"></span>
+        {{/each}}
+      </div>
+      <div class="crawl-bar-values">
+        <input type="number" name="system.hp.filledSlots" value="{{system.hp.filledSlots}}" min="0" max="10" title="Filled slots" {{#unless editable}}disabled{{/unless}}>
+        <span>/ 10 slots ({{system.hp.slotValue}} ea.)</span>
+      </div>
+    </div>
+
+    {{#if editable}}
+    <div class="crawl-injury-buttons">
+      <button type="button" data-action="applyInjury" data-severity="minor" title="Apply a -2 penalty to all Checks">Minor Injury</button>
+      <button type="button" data-action="applyInjury" data-severity="major" title="Apply a -5 penalty to all Checks">Major Injury</button>
+    </div>
+    {{/if}}
+
+    <div class="crawl-bar crawl-bar-mana">
+      <span class="crawl-bar-label">Mana</span>
+      <div class="crawl-bar-track"><div class="crawl-bar-fill" style="width: {{manaPct}}%"></div></div>
+      <div class="crawl-bar-values">
+        <input type="number" name="system.mana.value" value="{{system.mana.value}}" {{#unless editable}}disabled{{/unless}}>
+        <span>/ {{system.mana.max}}</span>
+      </div>
+    </div>
+
+    <div class="crawl-stat-grid crawl-stat-grid-3">
+      <div class="crawl-stat">
+        <span>Evade <span class="crawl-hint-icon" title="{{system.evade.value}} is the passive value Mobs roll against (GMs don't roll defense). Your own defense is an active 1d20 + DEX mod roll, either via the Evade button in chat when attacked, or click this number to roll it manually.">?</span></span>
+        <button type="button" class="crawl-stat-roll" data-action="rollEvadeCheck" title="Roll Evade (Shift = Advantage, Ctrl = Disadvantage)"><strong>{{system.evade.value}}</strong></button>
+      </div>
+      <div class="crawl-stat"><span>Damage Resistance</span><strong>{{system.damageResistance.value}}</strong></div>
+      <div class="crawl-stat"><span>Gold</span>
+        <input type="number" name="system.gold" value="{{system.gold}}" {{#unless editable}}disabled{{/unless}}></div>
+    </div>
+
+    <div class="crawl-stat-grid crawl-stat-grid-3">
+      <div class="crawl-stat"><span>Move</span>
+        <input type="number" name="system.move" value="{{system.move}}" {{#unless editable}}disabled{{/unless}}></div>
+      <div class="crawl-stat"><span>Step</span>
+        <input type="number" name="system.step" value="{{system.step}}" {{#unless editable}}disabled{{/unless}}></div>
+      <div class="crawl-stat"><span>Size</span>
+        <select name="system.size" {{#unless editable}}disabled{{/unless}}>
+          {{crOptions sizes system.size}}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="crawl-attributes">
+    {{#each attributes}}
+    <div class="crawl-attr">
+      <button type="button" class="crawl-attr-roll" data-action="rollAttribute" data-key="{{this.key}}" title="Roll {{this.label}} (Shift = Advantage, Ctrl = Disadvantage)">
+        <span class="crawl-attr-abbr">{{this.abbr}}</span>
+        <span class="crawl-attr-total">{{crSign this.mod}}</span>
+        <span class="crawl-attr-score">{{this.total}}</span>
+      </button>
+      <div class="crawl-attr-inputs">
+        <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="Base score" {{#unless ../editable}}disabled{{/unless}}>
+        <input type="number" name="system.attributes.{{this.key}}.bonus" value="{{this.bonus}}" title="Bonus from race, class, elixirs" {{#unless ../editable}}disabled{{/unless}}>
+      </div>
+      <span class="crawl-attr-label">{{this.label}}</span>
+    </div>
+    {{/each}}
+  </div>
+  {{/if}}
 
   {{#if (crEq tab "skills")}}
   <h3 class="crawl-subhead">Attacks</h3>

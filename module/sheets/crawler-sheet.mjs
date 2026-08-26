@@ -19,6 +19,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     actions: {
       showTab: CrawlerSheet._onShowTab,
       rollAttribute: CrawlerSheet._onRollAttribute,
+      rollEvadeCheck: CrawlerSheet._onRollEvadeCheck,
       rollSkill: CrawlerSheet._onRollSkill,
       rollAttackGear: CrawlerSheet._onRollAttackGear,
       useItem: CrawlerSheet._onUseItem,
@@ -144,6 +145,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       isGM,
       tab: this.tab,
       tabs: [
+        { id: "character", label: "Character" },
         { id: "skills", label: "Skills" },
         { id: "gear", label: "Gear" },
         { id: "hotlist", label: "Hotlist" },
@@ -222,6 +224,10 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   static async _onRollAttribute(event, target) {
     return this.document.rollAttribute(target.dataset.key, rollModifiers(event));
+  }
+
+  static async _onRollEvadeCheck(event) {
+    return this.document.rollEvadeCheck(rollModifiers(event));
   }
 
   static async _onRollSkill(event, target) {

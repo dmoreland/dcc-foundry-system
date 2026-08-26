@@ -9,6 +9,12 @@
     <span class="crawl-card-detail">damage — {{formula}}</span>
   </div>
 
+  {{#if targetName}}
+  <div class="crawl-card-dr">
+    {{targetName}} has {{targetDR}} Damage Resistance — {{afterDR}} would actually land
+  </div>
+  {{/if}}
+
   <div class="crawl-card-tooltip">{{{tooltip}}}</div>
 
   <div class="crawl-card-apply">Apply to selected token(s)</div>
