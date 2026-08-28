@@ -5,8 +5,7 @@ CRAWLER.attributes = {
   dex: "Dexterity",
   con: "Constitution",
   int: "Intelligence",
-  cha: "Charisma",
-  luc: "Luck"
+  cha: "Charisma"
 };
 
 /** Attributes that can back a skill. */
@@ -17,6 +16,15 @@ CRAWLER.skillAttributes = ["str", "dex", "con", "int", "cha"];
 CRAWLER.skillAttributeChoices = {
   none: "None",
   ...CRAWLER.skillAttributes.reduce((o, k) => { o[k] = CRAWLER.attributes[k]; return o; }, {})
+};
+
+/** Damage attribute choices for Attack/Spell Skills: "same" (the default) uses whichever
+ * attribute governs the to-hit roll; otherwise it can be overridden independently, e.g. a
+ * ranged weapon that hits with DEX but deals damage off STR (per the book: "Physical ranged
+ * Attacks use DEX to hit, some apply STR" to damage). */
+CRAWLER.damageAttributeChoices = {
+  same: "Same as To-Hit",
+  ...CRAWLER.skillAttributeChoices
 };
 
 CRAWLER.gearKinds = {

@@ -1,0 +1,18 @@
+<div class="crawl-card crawl-heal-card">
+  <header class="crawl-card-head">
+    <span class="crawl-tab">{{actorName}}</span>
+    <h4>{{label}}</h4>
+  </header>
+
+  <div class="crawl-card-result">
+    <span class="crawl-card-total">{{healSlots}}</span>
+    <span class="crawl-card-detail">Health Bar slot{{#unless (crEq healSlots 1)}}s{{/unless}} — no roll, no Damage Resistance</span>
+  </div>
+
+  {{#if flavor}}<div class="crawl-card-flavor">{{{flavor}}}</div>{{/if}}
+
+  <div class="crawl-card-apply">Apply to selected token(s)</div>
+  <div class="crawl-card-buttons">
+    <button type="button" data-crawl-action="applyHeal" data-slots="{{healSlots}}" title="Heal selected tokens this many Health Bar slots">Apply Heal</button>
+  </div>
+</div>

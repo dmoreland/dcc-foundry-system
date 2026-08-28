@@ -35,7 +35,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       editEffect: CrawlerSheet._onEditEffect,
       toggleEffect: CrawlerSheet._onToggleEffect,
       deleteEffect: CrawlerSheet._onDeleteEffect,
-      applyInjury: CrawlerSheet._onApplyInjury
+      applyInjury: CrawlerSheet._onApplyInjury,
+      rest: CrawlerSheet._onRest
     }
   };
 
@@ -62,6 +63,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
           kindLabel: CRAWLER.featureKinds[s.kind] ?? s.kind,
           attribute: s.attribute,
           attributeLabel: CRAWLER.attributes[s.attribute] ?? "",
+          damageAttribute: s.damageAttribute === "same" ? s.attribute : s.damageAttribute,
           rank: s.rank,
           floorBonus: s.floorBonus,
           total: actor.skillModifier(skill),
@@ -74,6 +76,11 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
           range: s.range,
           manaCost: s.manaCost,
           rollable: s.skillType !== "feature" && s.checkType !== "passive",
+          healing: s.healing,
+          healSlots: s.healSlots,
+          manaRestore: s.manaRestore,
+          manaRestoreAmount: s.manaRestoreAmount,
+          manaRestoreFull: s.manaRestoreFull,
           cooldownRemaining: this._cooldownRemaining(skill),
           pinned: hotlistIds.includes(skill.id),
           buffScope: s.buffScope,
@@ -330,5 +337,9 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   static async _onApplyInjury(event, target) {
     return this.document.applyInjury(target.dataset.severity);
+  }
+
+  static async _onRest(event, target) {
+    return this.document.rest(target.dataset.restType);
   }
 }

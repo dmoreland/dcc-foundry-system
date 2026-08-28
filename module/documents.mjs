@@ -89,6 +89,28 @@ export class CrawlerActor extends Actor {
     if (manaCost) await this.update({ "system.mana.value": mana.value - manaCost });
     await this.useCooldown(skill);
 
+    // Healing never rolls — it's a flat number of Health Bar slots, no attribute or DR involved.
+    if (skill.system.healing) {
+      return Dice.postHealCard({
+        actor: this,
+        label: `${skill.system.skillType === "spell" ? "Cast" : "Use"} — ${skill.name}`,
+        healSlots: skill.system.healSlots,
+        flavor: skill.system.description,
+        relativeTo: skill
+      });
+    }
+    // Same idea for Mana restoration — a flat amount or a full restore, never a roll.
+    if (skill.system.manaRestore) {
+      return Dice.postManaCard({
+        actor: this,
+        label: `${skill.system.skillType === "spell" ? "Cast" : "Use"} — ${skill.name}`,
+        amount: skill.system.manaRestoreAmount,
+        full: skill.system.manaRestoreFull,
+        flavor: skill.system.description,
+        relativeTo: skill
+      });
+    }
+
     const isAttack = skill.system.checkType === "evade";
     const attrLabel = CRAWLER.attributes[attrKey];
     const label = isAttack
@@ -135,14 +157,36 @@ export class CrawlerActor extends Actor {
     return this.rollSkill(skill.id, options);
   }
 
-  /** Use a consumable: decrements quantity, then rolls its effect (or just posts its
-   *  description to chat if it has none) — e.g. drinking a Healing Potion. */
+  /** Use a consumable: decrements quantity, then heals a flat number of slots if it has the
+   *  Healing trait, rolls its Use formula, or (if neither) just posts its description to chat. */
   async useItem(itemId) {
     const item = this.items.get(itemId);
     if (!item || item.type !== "gear") return;
     if (item.system.quantity <= 0) return ui.notifications.warn(`No ${item.name} left.`);
 
     await item.update({ "system.quantity": item.system.quantity - 1 });
+
+    // Healing never rolls — it's a flat number of Health Bar slots, no attribute or DR involved.
+    if (item.system.healing) {
+      return Dice.postHealCard({
+        actor: this,
+        label: `Use — ${item.name}`,
+        healSlots: item.system.healSlots,
+        flavor: item.system.description,
+        relativeTo: item
+      });
+    }
+    // Same idea for Mana restoration — a flat amount or a full restore, never a roll.
+    if (item.system.manaRestore) {
+      return Dice.postManaCard({
+        actor: this,
+        label: `Use — ${item.name}`,
+        amount: item.system.manaRestoreAmount,
+        full: item.system.manaRestoreFull,
+        flavor: item.system.description,
+        relativeTo: item
+      });
+    }
 
     const formula = item.system.useDamage;
     if (!formula) {
@@ -252,6 +296,72 @@ export class CrawlerActor extends Actor {
     await this.update(updates);
     await this._syncDefeatedStatus(before, after);
     return { name: this.name, before, after, maxSlots, delta: slotsChanged };
+  }
+
+  /**
+   * Heal a flat number of Health Bar slots directly — no roll, no attribute, no Damage
+   * Resistance. Per the book, healing (unlike damage) is never a calculation: a Spell or item
+   * just states how many slots (or what percentage) it restores. `full` heals to max (e.g. a
+   * Long Rest) instead of adding a flat number of slots.
+   * @returns {{name: string, before: number, after: number, maxSlots: number}|null}
+   */
+  async healSlots(slots, { full = false } = {}) {
+    const hp = this.system.hp;
+    if (!hp || (!full && !slots)) return null;
+    const maxSlots = this.type === "crawler" ? 10 : (hp.maxSlots ?? 10);
+    const before = hp.filledSlots;
+    const after = full ? maxSlots : Math.clamp(before + Math.abs(Math.floor(slots)), 0, maxSlots);
+    if (after === before) return { name: this.name, before, after, maxSlots };
+    await this.update({ "system.hp.filledSlots": after });
+    await this._syncDefeatedStatus(before, after);
+    return { name: this.name, before, after, maxSlots };
+  }
+
+  /**
+   * Restore Mana directly — no roll. `full` restores to max (e.g. a Standard Mana Potion);
+   * otherwise `amount` is added flat (e.g. a Good Mana Refill Potion's 15 Mana), capped at max.
+   * @returns {{name: string, before: number, after: number, max: number}|null}
+   */
+  async restoreMana(amount, { full = false } = {}) {
+    const mana = this.system.mana;
+    if (!mana) return null;
+    const before = mana.value;
+    const after = full ? mana.max : Math.clamp(before + Math.abs(Math.floor(amount)), 0, mana.max);
+    if (after === before) return { name: this.name, before, after, max: mana.max };
+    await this.update({ "system.mana.value": after });
+    return { name: this.name, before, after, max: mana.max };
+  }
+
+  /**
+   * Passive recovery over time (p. 94-95): a Short Rest (2 hours) heals 5 slots and half of
+   * max Mana (rounded down); a Long Rest (8 hours) or a Full Day's Rest (30 hours) both fully
+   * restore HP and Mana, and a Full Day's Rest also clears Injuries (the book requires a full
+   * day to recover from those); "taking a break" is the passive trickle for every full hour
+   * spent outside combat with no formal rest — 1 slot and 5 Mana, no roll either way.
+   */
+  async rest(type) {
+    const mana = this.system.mana;
+    let healResult, manaResult, injuriesCleared = 0;
+
+    if (type === "short") {
+      healResult = await this.healSlots(5);
+      manaResult = await this.restoreMana(Math.floor((mana?.max ?? 0) / 2));
+    } else if (type === "long" || type === "fullday") {
+      healResult = await this.healSlots(0, { full: true });
+      manaResult = await this.restoreMana(0, { full: true });
+      if (type === "fullday") {
+        const injuries = this.effects.filter(e => e.name.endsWith("Injury"));
+        injuriesCleared = injuries.length;
+        if (injuriesCleared) await this.deleteEmbeddedDocuments("ActiveEffect", injuries.map(e => e.id));
+      }
+    } else if (type === "break") {
+      healResult = await this.healSlots(1);
+      manaResult = await this.restoreMana(5);
+    } else {
+      return;
+    }
+
+    return Dice.postRestCard({ actor: this, type, healResult, manaResult, injuriesCleared });
   }
 
   /** Mark/clear a Dying (Crawler) or defeated (Mob) status when Health Bar slots hit/leave 0. */

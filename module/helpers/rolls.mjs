@@ -195,7 +195,8 @@ export async function postEvadeResult({
  * is per-item, not automatic for every weapon), that die and any flat bonus damage (from
  * size) are added afterward, undoubled. */
 export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDamage = 0, extraDamage = "", doubleDamage = false }) {
-  const attrKey = item.system.attribute;
+  const dmgAttrSetting = item.system.damageAttribute;
+  const attrKey = (dmgAttrSetting && dmgAttrSetting !== "same") ? dmgAttrSetting : item.system.attribute;
   const attrMod = (attrKey && attrKey !== "none") ? (actor.system.attributes?.[attrKey]?.mod ?? 0) : 0;
   const baseDie = item.system.damage || "1d6";
   const die = crit ? doubleDiceCount(baseDie) : baseDie;
@@ -264,6 +265,132 @@ export async function postDamageCard({ actor, label, roll, crit = false }) {
     rolls: [roll],
     sound: CONFIG.sounds.dice,
     flags: { [SYSTEM_ID]: { actorId: actor.id, damage: roll.total } }
+  });
+}
+
+/**
+ * Post a healing card — a flat number of Health Bar slots, no roll, no attribute, no Damage
+ * Resistance (per the book, healing is never a calculation). Carries an Apply Heal button that
+ * heals whichever tokens are currently selected on the canvas.
+ */
+export async function postHealCard({ actor, label, healSlots, flavor = "", relativeTo = actor }) {
+  const content = await render(`systems/${SYSTEM_ID}/templates/chat/heal-card.hbs`, {
+    label,
+    actorName: actor.name,
+    healSlots,
+    flavor: flavor ? await enrich(flavor, { relativeTo }) : ""
+  });
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    flags: { [SYSTEM_ID]: { actorId: actor.id, healSlots } }
+  });
+}
+
+/**
+ * Heal every selected token the user owns by a flat number of Health Bar slots (no DR, no
+ * amount-to-slots conversion — see CrawlerActor#healSlots). Posts a chat notice, reusing the
+ * same summary format as applyToSelected.
+ */
+export async function applyHealSlotsToSelected(slots) {
+  const tokens = canvas.tokens?.controlled ?? [];
+  if (!tokens.length) return ui.notifications.warn("Select one or more tokens on the canvas first.");
+
+  const results = [];
+  for (const token of tokens) {
+    const actor = token.actor;
+    if (!actor?.isOwner) continue;
+    const res = await actor.healSlots?.(slots);
+    if (res) results.push(res);
+  }
+  if (!results.length) return ui.notifications.warn("You don't own any of the selected tokens.");
+
+  const rows = results.map(r => {
+    const change = Math.abs(r.after - r.before);
+    return `<li><strong>${r.name}</strong> heals ${change} slot${change === 1 ? "" : "s"} (${r.before} → ${r.after}/${r.maxSlots})</li>`;
+  }).join("");
+
+  return ChatMessage.create({
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">Healed</span>
+      <ul class="crawl-apply-list">${rows}</ul></div>`
+  });
+}
+
+/**
+ * Post a Mana-restoration card — a flat amount or a full restore, no roll. Carries an Apply
+ * button that restores whichever tokens are currently selected on the canvas.
+ */
+export async function postManaCard({ actor, label, amount = 0, full = false, flavor = "", relativeTo = actor }) {
+  const content = await render(`systems/${SYSTEM_ID}/templates/chat/mana-card.hbs`, {
+    label,
+    actorName: actor.name,
+    amount,
+    full,
+    flavor: flavor ? await enrich(flavor, { relativeTo }) : ""
+  });
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    flags: { [SYSTEM_ID]: { actorId: actor.id, manaAmount: amount, manaFull: full } }
+  });
+}
+
+/** Restore Mana on every selected token the user owns, by a flat amount or to full. */
+export async function applyManaToSelected(amount, full = false) {
+  const tokens = canvas.tokens?.controlled ?? [];
+  if (!tokens.length) return ui.notifications.warn("Select one or more tokens on the canvas first.");
+
+  const results = [];
+  for (const token of tokens) {
+    const actor = token.actor;
+    if (!actor?.isOwner) continue;
+    const res = await actor.restoreMana?.(amount, { full });
+    if (res) results.push(res);
+  }
+  if (!results.length) return ui.notifications.warn("You don't own any of the selected tokens.");
+
+  const rows = results.map(r => {
+    const change = Math.abs(r.after - r.before);
+    return `<li><strong>${r.name}</strong> regains ${change} Mana (${r.before} → ${r.after}/${r.max})</li>`;
+  }).join("");
+
+  return ChatMessage.create({
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">Mana Restored</span>
+      <ul class="crawl-apply-list">${rows}</ul></div>`
+  });
+}
+
+const REST_LABELS = {
+  short: "Short Rest (2 hours)",
+  long: "Long Rest (8 hours)",
+  fullday: "Full Day's Rest (30 hours)",
+  break: "Took a Break (1 hour)"
+};
+
+/** Post a summary of a rest/passive-recovery action (see CrawlerActor#rest) — what HP/Mana
+ *  changed and, for a Full Day's Rest, how many Injuries were cleared. */
+export async function postRestCard({ actor, type, healResult, manaResult, injuriesCleared = 0 }) {
+  const rows = [];
+  if (healResult && healResult.after !== healResult.before) {
+    rows.push(`<li>Health Bar: ${healResult.before} → ${healResult.after}/${healResult.maxSlots} slots</li>`);
+  }
+  if (manaResult && manaResult.after !== manaResult.before) {
+    rows.push(`<li>Mana: ${manaResult.before} → ${manaResult.after}/${manaResult.max}</li>`);
+  }
+  if (injuriesCleared) {
+    rows.push(`<li>Cleared ${injuriesCleared} Injury effect${injuriesCleared === 1 ? "" : "s"}</li>`);
+  }
+  if (!rows.length) rows.push("<li>No change — already at full Health and Mana.</li>");
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">${REST_LABELS[type] ?? "Rest"}</span>
+      <ul class="crawl-apply-list">${rows.join("")}</ul></div>`
   });
 }
 

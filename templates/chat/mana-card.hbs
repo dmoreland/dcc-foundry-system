@@ -1,0 +1,22 @@
+<div class="crawl-card crawl-mana-card">
+  <header class="crawl-card-head">
+    <span class="crawl-tab">{{actorName}}</span>
+    <h4>{{label}}</h4>
+  </header>
+
+  <div class="crawl-card-result">
+    {{#if full}}
+    <span class="crawl-card-detail">Restores Mana to full — no roll</span>
+    {{else}}
+    <span class="crawl-card-total">{{amount}}</span>
+    <span class="crawl-card-detail">Mana restored — no roll</span>
+    {{/if}}
+  </div>
+
+  {{#if flavor}}<div class="crawl-card-flavor">{{{flavor}}}</div>{{/if}}
+
+  <div class="crawl-card-apply">Apply to selected token(s)</div>
+  <div class="crawl-card-buttons">
+    <button type="button" data-crawl-action="applyMana" data-amount="{{amount}}" data-full="{{full}}" title="Restore Mana on selected tokens">Apply Mana</button>
+  </div>
+</div>

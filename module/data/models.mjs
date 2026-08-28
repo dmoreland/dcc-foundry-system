@@ -152,6 +152,7 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       skillType: new fields.StringField({ initial: "utility", choices: CRAWLER.skillTypes }),
       kind: new fields.StringField({ initial: "class", choices: CRAWLER.featureKinds }),
       attribute: new fields.StringField({ initial: "str", choices: CRAWLER.skillAttributeChoices }),
+      damageAttribute: new fields.StringField({ initial: "same", choices: CRAWLER.damageAttributeChoices }),
       rank: num(0, { min: 0, max: 20 }),
       floorBonus: num(0),
       checkType: new fields.StringField({ initial: "unopposed", choices: CRAWLER.skillCheckTypes }),
@@ -170,6 +171,11 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       buffRequiresDisadvantage: new fields.BooleanField({ initial: false }),
       buffToHitBonus: new fields.BooleanField({ initial: false }),
       buffDamage: new fields.StringField({ initial: "" }),
+      healing: new fields.BooleanField({ initial: false }),
+      healSlots: num(0, { min: 0, max: 10 }),
+      manaRestore: new fields.BooleanField({ initial: false }),
+      manaRestoreAmount: num(0, { min: 0 }),
+      manaRestoreFull: new fields.BooleanField({ initial: false }),
       description: new fields.HTMLField({ initial: "" })
     };
   }
@@ -189,6 +195,11 @@ export class GearData extends foundry.abstract.TypeDataModel {
       uses: new fields.SchemaField({ value: num(0), max: num(0) }),
       useDamage: new fields.StringField({ initial: "" }),
       useAttribute: new fields.StringField({ initial: "none" }),
+      healing: new fields.BooleanField({ initial: false }),
+      healSlots: num(0, { min: 0, max: 10 }),
+      manaRestore: new fields.BooleanField({ initial: false }),
+      manaRestoreAmount: num(0, { min: 0 }),
+      manaRestoreFull: new fields.BooleanField({ initial: false }),
       description: new fields.HTMLField({ initial: "" })
     };
   }

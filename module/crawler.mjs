@@ -44,7 +44,9 @@ Hooks.once("init", () => {
     `systems/${SYSTEM_ID}/templates/chat/damage-card.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/attack-pending.hbs`,
     `systems/${SYSTEM_ID}/templates/chat/evade-card.hbs`,
-    `systems/${SYSTEM_ID}/templates/chat/info-card.hbs`
+    `systems/${SYSTEM_ID}/templates/chat/info-card.hbs`,
+    `systems/${SYSTEM_ID}/templates/chat/heal-card.hbs`,
+    `systems/${SYSTEM_ID}/templates/chat/mana-card.hbs`
   ]);
 });
 
@@ -82,6 +84,17 @@ onChatCardRender((message, html) => {
         const amount = Number(event.currentTarget.dataset.amount ?? 0);
         const multiplier = Number(event.currentTarget.dataset.multiplier ?? 1);
         return Dice.applyToSelected(amount, multiplier);
+      }
+
+      if (action === "applyHeal") {
+        const slots = Number(event.currentTarget.dataset.slots ?? 0);
+        return Dice.applyHealSlotsToSelected(slots);
+      }
+
+      if (action === "applyMana") {
+        const amount = Number(event.currentTarget.dataset.amount ?? 0);
+        const full = event.currentTarget.dataset.full === "true";
+        return Dice.applyManaToSelected(amount, full);
       }
 
       if (action === "evade" || action === "takeHit") {
