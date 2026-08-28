@@ -160,6 +160,7 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       damage: new fields.StringField({ initial: "" }),
       damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
       range: new fields.StringField({ initial: "" }),
+      blast: num(0, { min: 0 }),
       manaCost: num(0, { min: 0 }),
       aiFavor: num(0),
       cooldown: num(0, { min: 0 }),

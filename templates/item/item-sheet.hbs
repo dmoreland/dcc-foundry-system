@@ -72,6 +72,7 @@
     </select>
   </label>
   <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="5 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Blast radius (ft) <input type="number" name="system.blast" value="{{system.blast}}" min="0" title="Area-of-effect radius in feet (Blast/Burst); 0 for a single target" {{#unless editable}}disabled{{/unless}}></label>
   <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
   <label>Cooldown (rounds) <input type="number" name="system.cooldown" value="{{system.cooldown}}" min="0" title="Only enforced while a Combat encounter is active" {{#unless editable}}disabled{{/unless}}></label>
   <label class="crawl-check">Grants Rank Damage Die
@@ -99,6 +100,7 @@
     </select>
   </label>
   <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="30 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Blast radius (ft) <input type="number" name="system.blast" value="{{system.blast}}" min="0" title="Area-of-effect radius in feet (Blast/Burst); 0 for a single target" {{#unless editable}}disabled{{/unless}}></label>
   <label>Mana cost <input type="number" name="system.manaCost" value="{{system.manaCost}}" min="0" title="Deducted automatically when cast" {{#unless editable}}disabled{{/unless}}></label>
   <label>Fan Point cost <input type="number" name="system.cost" value="{{system.cost}}" min="0" title="Inert until the Fan Points resource is built" {{#unless editable}}disabled{{/unless}}></label>
   <label>AI Favor <input type="number" name="system.aiFavor" value="{{system.aiFavor}}" title="Inert until the AI Favor resource is built" {{#unless editable}}disabled{{/unless}}></label>
