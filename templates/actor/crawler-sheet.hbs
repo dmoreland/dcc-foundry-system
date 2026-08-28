@@ -76,6 +76,15 @@
         </select>
       </div>
     </div>
+
+    {{#if editable}}
+    <div class="crawl-rest-buttons">
+      <button type="button" data-action="rest" data-rest-type="break" title="Passive trickle: for every full hour outside combat, heal 1 Health Bar slot and regain 5 Mana — no formal rest needed">Take a Break</button>
+      <button type="button" data-action="rest" data-rest-type="short" title="2 hours: heal 5 Health Bar slots and regain half your max Mana">Short Rest</button>
+      <button type="button" data-action="rest" data-rest-type="long" title="8 hours: full Health Bar and full Mana">Long Rest</button>
+      <button type="button" data-action="rest" data-rest-type="fullday" title="30 hours: full Health Bar and full Mana, and clears all Injuries">Full Day's Rest</button>
+    </div>
+    {{/if}}
   </div>
 
   <div class="crawl-attributes">
@@ -101,8 +110,8 @@
   <ol class="crawl-list">
     {{#each attackSkills}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
-      <button type="button" class="crawl-row-name" data-action="rollSkill" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
-      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
+      <button type="button" class="crawl-row-name" data-action="rollSkill" title="{{#if this.healing}}Use{{else}}Attack with{{/if}} {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
+      <span class="crawl-mono">{{#if this.healing}}Heals {{this.healSlots}}{{else if this.manaRestore}}{{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{else}}{{this.damage}} + {{crUpper this.damageAttribute}}{{/if}}</span>
       <span class="crawl-muted">
         {{this.attackTypeLabel}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
         {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
@@ -136,7 +145,7 @@
     {{#each spellSkills}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
       <button type="button" class="crawl-row-name" data-action="rollSkill" title="Cast {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#if this.cooldownRemaining}}disabled{{/if}}>{{this.name}}</button>
-      <span class="crawl-mono">{{this.damage}} + {{crUpper this.attribute}}</span>
+      <span class="crawl-mono">{{#if this.healing}}Heals {{this.healSlots}}{{else if this.manaRestore}}{{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{else}}{{this.damage}} + {{crUpper this.damageAttribute}}{{/if}}</span>
       <span class="crawl-muted">
         {{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
         {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
@@ -174,7 +183,7 @@
     <li class="crawl-row crawl-row-skill draggable" data-item-id="{{this.id}}">
       <span class="crawl-row-name-wrap">
         <button type="button" class="crawl-row-name" data-action="rollSkill" title="{{#if this.rollable}}Roll {{this.name}} (Shift = Advantage, Ctrl = Disadvantage){{else}}Post {{this.name}}'s description to chat{{/if}}">{{this.name}}</button>
-        <span class="crawl-check-badge">{{this.checkTypeLabel}}{{#unless (crEq this.buffScope "none")}} · Buff{{/unless}}</span>
+        <span class="crawl-check-badge">{{this.checkTypeLabel}}{{#unless (crEq this.buffScope "none")}} · Buff{{/unless}}{{#if this.healing}} · Heals {{this.healSlots}}{{/if}}{{#if this.manaRestore}} · {{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{/if}}</span>
       </span>
       <span class="crawl-mono">{{crUpper this.attribute}}</span>
       <span class="crawl-rank">
@@ -273,7 +282,7 @@
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
       <span class="crawl-row-name">{{this.name}}</span>
       <span class="crawl-mono">×{{this.quantity}}</span>
-      <span class="crawl-muted">{{this.kindLabel}}</span>
+      <span class="crawl-muted">{{this.kindLabel}}{{#if this.healing}} · Heals {{this.healSlots}}{{/if}}{{#if this.manaRestore}} · {{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{/if}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
         {{#if (crEq this.kind "consumable")}}

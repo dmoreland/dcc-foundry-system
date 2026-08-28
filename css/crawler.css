@@ -109,15 +109,17 @@
 
 .crawl-attributes {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 20px;
 }
 
 .crawl-attr { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 
 .crawl-attr-roll {
   width: 100%;
+  height: auto;
+  min-height: 0;
   padding: 6px 0 4px;
   display: flex;
   flex-direction: column;
@@ -157,6 +159,9 @@
 
 .crawl-injury-buttons { display: flex; gap: 6px; }
 .crawl-injury-buttons button { flex: 1; padding: 4px; font-size: 11px; }
+
+.crawl-rest-buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.crawl-rest-buttons button { flex: 1 1 auto; padding: 4px; font-size: 11px; }
 
 .crawl-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .crawl-stat-grid-2 { grid-template-columns: repeat(2, 1fr); }

@@ -34,6 +34,23 @@
       {{crOptions config.skillCheckTypes system.checkType}}
     </select>
   </label>
+  <label class="crawl-check">Has the Healing trait
+    <input type="checkbox" name="system.healing" {{checked system.healing}} title="Per the book, healing is never a roll or calculation — using this Skill heals a flat number of Health Bar slots instead of rolling to-hit/damage" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#if system.healing}}
+  <label>Heal slots <input type="number" name="system.healSlots" value="{{system.healSlots}}" min="0" max="10" title="e.g. the Heal Spell restores 20% Health Bar = 2 slots" {{#unless editable}}disabled{{/unless}}></label>
+  {{/if}}
+  <label class="crawl-check">Restores Mana
+    <input type="checkbox" name="system.manaRestore" {{checked system.manaRestore}} title="Like healing, restoring Mana is never a roll — a flat amount or a full restore" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#if system.manaRestore}}
+  <label class="crawl-check">Restore to full
+    <input type="checkbox" name="system.manaRestoreFull" {{checked system.manaRestoreFull}} title="e.g. a Standard Mana Potion" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#unless system.manaRestoreFull}}
+  <label>Mana amount <input type="number" name="system.manaRestoreAmount" value="{{system.manaRestoreAmount}}" min="0" title="e.g. a Good Mana Refill Potion restores 15 Mana" {{#unless editable}}disabled{{/unless}}></label>
+  {{/unless}}
+  {{/if}}
   {{/unless}}
 
   {{#if isAttack}}
@@ -43,6 +60,11 @@
     </select>
   </label>
   <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage attribute
+    <select name="system.damageAttribute" title="Most melee Attacks damage off the same Stat as to-hit; ranged weapons often hit with DEX but damage with STR" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.damageAttributeChoices system.damageAttribute}}
+    </select>
+  </label>
   <label>Damage type
     <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
       <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
@@ -65,6 +87,11 @@
     </select>
   </label>
   <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d6" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage attribute
+    <select name="system.damageAttribute" title="Most Spells damage off the same Stat as to-hit (usually INT)" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.damageAttributeChoices system.damageAttribute}}
+    </select>
+  </label>
   <label>Damage type
     <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
       <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
@@ -125,13 +152,32 @@
   <label>Armour bonus <input type="number" name="system.armour" value="{{system.armour}}" {{#unless editable}}disabled{{/unless}}></label>
   {{/if}}
   {{#if (crEq system.kind "consumable")}}
-  <label>Use formula <input type="text" name="system.useDamage" value="{{system.useDamage}}" placeholder="3d8" title="e.g. a Healing Potion's restore amount — leave blank for a flavor-only Use" {{#unless editable}}disabled{{/unless}}></label>
+  <label class="crawl-check">Has the Healing trait
+    <input type="checkbox" name="system.healing" {{checked system.healing}} title="Per the book, healing is never a roll or calculation — using this item heals a flat number of Health Bar slots instead of rolling a Use formula" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#if system.healing}}
+  <label>Heal slots <input type="number" name="system.healSlots" value="{{system.healSlots}}" min="0" max="10" title="e.g. a Healing Potion that restores 30% Health Bar = 3 slots" {{#unless editable}}disabled{{/unless}}></label>
+  {{else}}
+  <label class="crawl-check">Restores Mana
+    <input type="checkbox" name="system.manaRestore" {{checked system.manaRestore}} title="Like healing, restoring Mana is never a roll — a flat amount or a full restore" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#if system.manaRestore}}
+  <label class="crawl-check">Restore to full
+    <input type="checkbox" name="system.manaRestoreFull" {{checked system.manaRestoreFull}} title="e.g. a Standard Mana Potion" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#unless system.manaRestoreFull}}
+  <label>Mana amount <input type="number" name="system.manaRestoreAmount" value="{{system.manaRestoreAmount}}" min="0" title="e.g. a Good Mana Refill Potion restores 15 Mana" {{#unless editable}}disabled{{/unless}}></label>
+  {{/unless}}
+  {{else}}
+  <label>Use formula <input type="text" name="system.useDamage" value="{{system.useDamage}}" placeholder="3d8" title="For non-healing, non-Mana consumables only, e.g. a thrown bomb — leave blank for a flavor-only Use" {{#unless editable}}disabled{{/unless}}></label>
   <label>Use attribute
     <select name="system.useAttribute" {{#unless editable}}disabled{{/unless}}>
       <option value="none"{{#if (crEq system.useAttribute "none")}} selected{{/if}}>None</option>
       {{crOptions config.attributes system.useAttribute}}
     </select>
   </label>
+  {{/if}}
+  {{/if}}
   {{/if}}
   <label>Quantity <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" {{#unless editable}}disabled{{/unless}}></label>
   <label class="crawl-check">Equipped
