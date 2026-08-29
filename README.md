@@ -39,9 +39,12 @@ Crawler's Skills from scratch on their sheet.
 - **Crawler**: the five Stats (Strength, Dexterity, Constitution, Intelligence, Charisma), a
   10-slot Health Bar, Mana, Evade, Damage Resistance, Move/Step/Size, gear slots, a Hotlist,
   and Active Effects.
-- **Mob**: Level, a Health Bar (10 slots by default, or a custom slot count), flat Evade/DR,
-  Move/Step/Size, and a free-form list of Attacks — GMs don't roll defense for Mobs, so their
-  Evade is always a passive DC.
+- **Mob**: built from the book's Stat Block (pp. 270–272) — Level, Floor, Type, Size, the five
+  Stats, and a Boss tier (Table 50). Evade (`10 + DEX + F`), Surprise (`10 + INT + F`) and
+  Damage Resistance (`= Floor`) derive from the Stats and current Floor, each with an *auto*
+  toggle and a manual nudge. Health Bar slots auto-set from Level (Boss = Table 50). Attacks
+  carry damage dice, damage type, Blast radius, and per-attack notes. GMs don't roll defense
+  for Mobs, so Evade/Surprise are passive DCs.
 
 **One unified Skill item**
 Weapons, Spells, Utility Skills, and static Features (racial traits, class abilities, curses,

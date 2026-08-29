@@ -39,6 +39,11 @@ export class MobSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       config: CRAWLER,
       editable: this.isEditable,
       isGM: game.user.isGM,
+      attributes: Object.entries(CRAWLER.attributes).map(([key, label]) => ({
+        key, label, abbr: key.toUpperCase(),
+        value: system.attributes[key].value,
+        mod: system.attributes[key].mod
+      })),
       effects,
       editing: {
         traits: this.editingFields.has("traits"),

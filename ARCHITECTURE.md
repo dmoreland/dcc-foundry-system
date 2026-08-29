@@ -74,6 +74,12 @@ attribute folds `value + bonus → total`, then:
 Equipped `gear` feeds Defense, so Defense is recomputed from items each prepare pass rather
 than stored. `hp`/`mana` current values are clamped to their maxes.
 
+`MobData.prepareDerivedData()` mirrors the book's Mob Stat Block (pp. 270–272): stat scores
+fold to mods, then `evade.value = 10 + dex.mod + floor`, `surprise.value = 10 + int.mod +
+floor`, `damageResistance.value = floor` (each gated by an `auto` flag + a manual `bonus`),
+`hp.maxSlots` from Level or the `bossTier` row of Table 50 (`CRAWLER.bossSeverity`), and
+`hp.slotValue` defaults to `con.mod`.
+
 **Roll data.** `CrawlerData.getRollData()` exposes `@str`, `@dex`, …, `@level`, `@defense`;
 `CrawlerActor.getRollData()` additionally builds `@skills.<slug>` (rank + floor bonus) so
 formulas can reference skills by name.
