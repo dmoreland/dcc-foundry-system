@@ -34,6 +34,40 @@ CRAWLER.gearKinds = {
   misc: "Misc"
 };
 
+/** Mob descriptor (flavour only, per the book). Free text is allowed; these seed a datalist. */
+CRAWLER.mobTypes = {
+  beastly: "Beastly",
+  humanoid: "Humanoid",
+  undead: "Undead",
+  ooze: "Ooze",
+  construct: "Construct",
+  aberration: "Aberration",
+  elemental: "Elemental",
+  plant: "Plant",
+  outsider: "Outsider"
+};
+
+/** Boss severity tier (Table 50). "none" = an ordinary Mob. */
+CRAWLER.bossTiers = {
+  none: "Not a Boss",
+  neighborhood: "Neighborhood Boss",
+  borough: "Borough Boss",
+  city: "City Boss",
+  province: "Province Boss",
+  country: "Country Boss",
+  floor: "Floor Boss"
+};
+
+/** Table 50: Boss Severity — stat points per Level, and base Health Bar slots (before +F). */
+CRAWLER.bossSeverity = {
+  neighborhood: { statsPerLevel: 3, hbSlots: 10 },
+  borough: { statsPerLevel: 4, hbSlots: 15 },
+  city: { statsPerLevel: 5, hbSlots: 20 },
+  province: { statsPerLevel: 6, hbSlots: 25 },
+  country: { statsPerLevel: 8, hbSlots: 30 },
+  floor: { statsPerLevel: 10, hbSlots: 40 }
+};
+
 /** Sub-category for skillType: "feature" skills (racial traits, class features, etc). */
 CRAWLER.featureKinds = {
   class: "Class Ability",

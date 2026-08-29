@@ -115,6 +115,8 @@
 }
 
 .crawl-attr { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.crawl-attributes-mob { margin-top: 12px; }
+.crawl-attributes-mob .crawl-attr input { width: 100%; text-align: center; font-size: 12px; padding: 2px; }
 
 .crawl-attr-roll {
   width: 100%;
@@ -244,7 +246,9 @@
 .crawl-list-head { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--crawl-muted); }
 .crawl-row:nth-child(odd) { background: rgba(255, 255, 255, 0.025); }
 .crawl-row-gear { grid-template-columns: 1fr 110px 90px 118px; }
-.crawl-row-attack { grid-template-columns: 1fr 46px 70px 74px; }
+.crawl-row-attack { grid-template-columns: 1fr 40px 58px 74px 40px 52px; }
+.crawl-row-attack select.crawl-tiny { width: 100%; }
+.crawl-row-notes { grid-column: 1 / -1; width: 100%; font-size: 11px; padding: 2px 4px; }
 .crawl-row-skill { grid-template-columns: 1fr 42px 78px 46px 46px 74px; }
 .crawl-row-ability { grid-template-columns: 1fr 90px 74px; }
 .crawl-row-hotlist { grid-template-columns: 26px 1fr 100px 30px; align-items: center; }

@@ -411,7 +411,7 @@ export class CrawlerActor extends Actor {
     const baseDie = atk.damage || "1d6";
     let formula = crit ? Dice.doubleDiceCount(baseDie) : baseDie;
     if (doubleDamage) formula = `(${formula}) * 2`;
-    const roll = await new Roll(formula).evaluate();
+    const roll = await new Roll(formula, this.getRollData()).evaluate();
     return Dice.postDamageCard({
       actor: this, label: `${crit ? "Critical damage" : "Damage"} — ${atk.name}`, roll, crit
     });

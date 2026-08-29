@@ -4,52 +4,110 @@
   <div class="crawl-ident">
     <input class="crawl-name" type="text" name="name" value="{{actor.name}}" {{#unless editable}}disabled{{/unless}}>
     <div class="crawl-ident-row">
-      <label>Level <input type="number" name="system.level" value="{{system.level}}" {{#unless editable}}disabled{{/unless}}></label>
-      <label>Floor <input type="number" name="system.floor" value="{{system.floor}}" min="1" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Level <input type="number" name="system.level" value="{{system.level}}" min="0" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Floor <input type="number" name="system.floor" value="{{system.floor}}" min="1" title="Feeds Evade, Surprise and Damage Resistance (+F)" {{#unless editable}}disabled{{/unless}}></label>
+      <label>Boss
+        <select name="system.bossTier" title="Table 50 — sets Boss Health Bar slots and 1 Action per crawler" {{#unless editable}}disabled{{/unless}}>
+          {{crOptions config.bossTiers system.bossTier}}
+        </select>
+      </label>
       <label class="crawl-check">Elite
-        <input type="checkbox" name="system.elite" {{checked system.elite}} {{#unless editable}}disabled{{/unless}}>
+        <input type="checkbox" name="system.elite" {{checked system.elite}} title="A one-of-a-kind named NPC (independent of Boss tier)" {{#unless editable}}disabled{{/unless}}>
       </label>
     </div>
   </div>
 </header>
 
+<section class="crawl-attributes crawl-attributes-mob">
+  {{#each attributes}}
+  <div class="crawl-attr">
+    <span class="crawl-attr-abbr">{{this.abbr}}</span>
+    <span class="crawl-attr-total">{{crSign this.mod}}</span>
+    <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="{{this.label}} score (base 1, +3 points per Level; Bosses base 5)" {{#unless ../editable}}disabled{{/unless}}>
+  </div>
+  {{/each}}
+</section>
+
 <section class="crawl-mob-grid">
-  <label>Health Bar Slots
-    <span class="crawl-pair">
-      <input type="number" name="system.hp.filledSlots" value="{{system.hp.filledSlots}}" min="0" title="Filled slots" {{#unless editable}}disabled{{/unless}}>
-      <input type="number" name="system.hp.maxSlots" value="{{system.hp.maxSlots}}" min="1" title="Max slots" {{#unless editable}}disabled{{/unless}}>
-    </span>
-  </label>
-  <label>Slot Value
-    <input type="number" name="system.hp.slotValue" value="{{system.hp.slotValue}}" min="0" title="Damage/healing per slot" {{#unless editable}}disabled{{/unless}}>
-  </label>
-  <label>Evade <input type="number" name="system.evade" value="{{system.evade}}" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Damage Resistance <input type="number" name="system.damageResistance" value="{{system.damageResistance}}" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Move <input type="number" name="system.move" value="{{system.move}}" {{#unless editable}}disabled{{/unless}}></label>
-  <label>Step <input type="number" name="system.step" value="{{system.step}}" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Type <input type="text" name="system.type" value="{{system.type}}" list="crawl-mob-types" placeholder="Beastly, Undead, Ooze…" {{#unless editable}}disabled{{/unless}}></label>
+  <datalist id="crawl-mob-types">
+    {{#each config.mobTypes}}<option value="{{this}}"></option>{{/each}}
+  </datalist>
   <label>Size
     <select name="system.size" {{#unless editable}}disabled{{/unless}}>
       {{crOptions config.sizes system.size}}
     </select>
   </label>
+
+  <label>Health Bar Slots
+    <span class="crawl-pair">
+      <input type="number" name="system.hp.filledSlots" value="{{system.hp.filledSlots}}" min="0" title="Filled slots" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.hp.maxSlots" value="{{system.hp.maxSlots}}" min="1" title="Max slots {{#if system.hp.autoSlots}}(auto = Level, capped at 10; Boss = Table 50 + F){{/if}}" {{#if system.hp.autoSlots}}readonly{{/if}} {{#unless editable}}disabled{{/unless}}>
+    </span>
+  </label>
+  <label class="crawl-check">Auto slots
+    <input type="checkbox" name="system.hp.autoSlots" {{checked system.hp.autoSlots}} {{#unless editable}}disabled{{/unless}}>
+  </label>
+  <label>Slot Value
+    <input type="number" name="system.hp.slotValue" value="{{system.hp.slotValue}}" min="0" title="Damage/healing per slot (0 = auto: the Mob's CON Mod)" {{#unless editable}}disabled{{/unless}}>
+  </label>
+
+  <label>Evade
+    <span class="crawl-pair">
+      <input type="number" name="system.evade.value" value="{{system.evade.value}}" {{#if system.evade.auto}}readonly{{/if}} title="{{#if system.evade.auto}}Auto = 10 + DEX mod + Floor + bonus{{else}}Manual value{{/if}}" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.evade.bonus" value="{{system.evade.bonus}}" title="Bonus nudge (applied when auto)" {{#unless editable}}disabled{{/unless}}>
+    </span>
+  </label>
+  <label class="crawl-check">Evade auto
+    <input type="checkbox" name="system.evade.auto" {{checked system.evade.auto}} {{#unless editable}}disabled{{/unless}}>
+  </label>
+
+  <label>Surprise
+    <span class="crawl-pair">
+      <input type="number" name="system.surprise.value" value="{{system.surprise.value}}" {{#if system.surprise.auto}}readonly{{/if}} title="{{#if system.surprise.auto}}Auto = 10 + INT mod + Floor + bonus{{else}}Manual value{{/if}}" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.surprise.bonus" value="{{system.surprise.bonus}}" title="Bonus nudge (applied when auto)" {{#unless editable}}disabled{{/unless}}>
+    </span>
+  </label>
+  <label class="crawl-check">Surprise auto
+    <input type="checkbox" name="system.surprise.auto" {{checked system.surprise.auto}} {{#unless editable}}disabled{{/unless}}>
+  </label>
+
+  <label>Damage Resistance
+    <span class="crawl-pair">
+      <input type="number" name="system.damageResistance.value" value="{{system.damageResistance.value}}" {{#if system.damageResistance.auto}}readonly{{/if}} title="{{#if system.damageResistance.auto}}Auto = Floor + bonus (armor +1–2, casters −1–2){{else}}Manual value{{/if}}" {{#unless editable}}disabled{{/unless}}>
+      <input type="number" name="system.damageResistance.bonus" value="{{system.damageResistance.bonus}}" title="Bonus nudge (applied when auto)" {{#unless editable}}disabled{{/unless}}>
+    </span>
+  </label>
+  <label class="crawl-check">DR auto
+    <input type="checkbox" name="system.damageResistance.auto" {{checked system.damageResistance.auto}} {{#unless editable}}disabled{{/unless}}>
+  </label>
+
+  <label>Move <input type="number" name="system.move" value="{{system.move}}" title="20 + Size value is typical for bipeds" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Step <input type="number" name="system.step" value="{{system.step}}" {{#unless editable}}disabled{{/unless}}></label>
 </section>
 
 <section class="crawl-mob-attacks">
   <label class="crawl-notes-label">Attacks</label>
   <ul class="crawl-list">
     <li class="crawl-row crawl-row-attack crawl-list-head">
-      <span>Name</span><span>Mod</span><span>Damage</span><span></span>
+      <span>Name</span><span>Mod</span><span>Damage</span><span>Type</span><span>Blast</span><span></span>
     </li>
     {{#each system.attacks as |atk index|}}
     <li class="crawl-row crawl-row-attack" data-index="{{index}}">
       <input class="crawl-row-name" type="text" name="system.attacks.{{index}}.name" value="{{atk.name}}" {{#unless ../editable}}disabled{{/unless}}>
       <input class="crawl-tiny" type="number" name="system.attacks.{{index}}.attack" value="{{atk.attack}}" {{#unless ../editable}}disabled{{/unless}}>
-      <input class="crawl-tiny" type="text" name="system.attacks.{{index}}.damage" value="{{atk.damage}}" {{#unless ../editable}}disabled{{/unless}}>
+      <input class="crawl-tiny" type="text" name="system.attacks.{{index}}.damage" value="{{atk.damage}}" title="Full dice per Table 51; −1d for an Area attack" {{#unless ../editable}}disabled{{/unless}}>
+      <select class="crawl-tiny" name="system.attacks.{{index}}.damageType" {{#unless ../editable}}disabled{{/unless}}>
+        <option value=""{{#if (crEq atk.damageType "")}} selected{{/if}}>—</option>
+        {{crOptions ../config.damageTypes atk.damageType}}
+      </select>
+      <input class="crawl-tiny" type="number" name="system.attacks.{{index}}.blast" value="{{atk.blast}}" min="0" title="Blast/Burst radius in feet (0 = single target)" {{#unless ../editable}}disabled{{/unless}}>
       <span class="crawl-row-controls">
         <button type="button" data-action="rollAttack" title="Roll Attack (Shift = Advantage, Ctrl = Disadvantage)"><i class="fa-solid fa-dice-d20"></i></button>
         <button type="button" data-action="rollDamage" title="Roll Damage (Shift = Critical)"><i class="fa-solid fa-dice"></i></button>
         {{#if ../editable}}<button type="button" data-action="removeAttack" title="Remove"><i class="fa-solid fa-trash"></i></button>{{/if}}
       </span>
+      <input class="crawl-row-notes" type="text" name="system.attacks.{{index}}.notes" value="{{atk.notes}}" placeholder="Notes: triggered effects, order, strategy…" {{#unless ../editable}}disabled{{/unless}}>
     </li>
     {{/each}}
   </ul>
@@ -61,7 +119,7 @@
 </section>
 
 <section class="crawl-mob-traits">
-  <label class="crawl-notes-label">Traits</label>
+  <label class="crawl-notes-label">Traits &amp; Notes</label>
   {{> "systems/crawler-d20/templates/partials/richtext.hbs"
     field="traits" path="system.traits" rows=8 editable=editable
     editing=editing.traits rendered=rendered.traits raw=system.traits}}

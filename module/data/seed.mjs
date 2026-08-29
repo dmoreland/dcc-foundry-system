@@ -48,9 +48,12 @@ export async function seedWorld() {
     type: "mob",
     system: {
       level: m.level,
-      hp: { maxSlots: m.maxSlots, filledSlots: m.maxSlots, slotValue: m.slotValue },
-      evade: m.evade,
-      damageResistance: m.damageResistance,
+      floor: 1,
+      hp: { autoSlots: false, maxSlots: m.maxSlots, filledSlots: m.maxSlots, slotValue: m.slotValue },
+      // Hand-tuned sample numbers: keep them literal rather than deriving from Stats.
+      evade: { auto: false, value: m.evade },
+      surprise: { auto: false, value: Math.max(10, m.evade - 2) },
+      damageResistance: { auto: false, value: m.damageResistance },
       attacks: m.attacks,
       elite: !!m.elite,
       traits: m.traits

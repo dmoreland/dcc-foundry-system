@@ -106,32 +106,83 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
 
 export class MobData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
+    const attributes = {};
+    for (const key of CRAWLER.skillAttributes) {
+      attributes[key] = new fields.SchemaField({ value: num(1, { min: 0 }) });
+    }
+
+    // Evade / Surprise / Damage Resistance follow the book's stat + Floor formulas
+    // (pp. 271). `auto` on = derive `value` each prepare; off = the GM's typed number wins.
+    const derivedStat = (initial) => new fields.SchemaField({
+      auto: new fields.BooleanField({ initial: true }),
+      bonus: num(0),
+      value: num(initial)
+    });
+
     return {
       level: num(1, { min: 0 }),
       floor: num(1, { min: 1 }),
+      type: new fields.StringField({ initial: "" }),
+      size: new fields.StringField({ initial: "medium", choices: CRAWLER.sizes }),
+      bossTier: new fields.StringField({ initial: "none", choices: CRAWLER.bossTiers }),
+      elite: new fields.BooleanField({ initial: false }),
+      attributes: new fields.SchemaField(attributes),
       hp: new fields.SchemaField({
         maxSlots: num(3, { min: 1 }),
         filledSlots: num(3, { min: 0 }),
-        slotValue: num(5, { min: 0 })
+        slotValue: num(0, { min: 0 }),
+        autoSlots: new fields.BooleanField({ initial: true })
       }),
-      evade: num(12),
-      damageResistance: num(0),
+      evade: derivedStat(12),
+      surprise: derivedStat(11),
+      damageResistance: derivedStat(1),
       move: num(20, { min: 0 }),
       step: num(10, { min: 0 }),
-      size: new fields.StringField({ initial: "medium", choices: CRAWLER.sizes }),
       attacks: new fields.ArrayField(new fields.SchemaField({
         name: new fields.StringField({ initial: "Attack" }),
         attack: num(3),
-        damage: new fields.StringField({ initial: "1d6" })
+        damage: new fields.StringField({ initial: "1d6" }),
+        damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
+        blast: num(0, { min: 0 }),
+        notes: new fields.StringField({ initial: "" })
       }), { initial: [{ name: "Attack", attack: 3, damage: "1d6" }] }),
-      elite: new fields.BooleanField({ initial: false }),
       traits: new fields.HTMLField({ initial: "" }),
       gmNotes: new fields.HTMLField({ initial: "" })
     };
   }
 
+  prepareDerivedData() {
+    const a = this.attributes;
+    for (const key of CRAWLER.skillAttributes) a[key].mod = CRAWLER.scoreToMod(a[key].value);
+
+    const F = this.floor;
+    if (this.evade.auto) this.evade.value = 10 + a.dex.mod + F + this.evade.bonus;
+    if (this.surprise.auto) this.surprise.value = 10 + a.int.mod + F + this.surprise.bonus;
+    if (this.damageResistance.auto) this.damageResistance.value = F + this.damageResistance.bonus;
+
+    // Health Bar (pp. 270): ordinary Mob slots = Level (max 10); Boss slots = Table 50 (tier + F).
+    const boss = CRAWLER.bossSeverity[this.bossTier];
+    if (this.hp.autoSlots) {
+      this.hp.maxSlots = boss ? boss.hbSlots + F : Math.clamp(this.level, 1, 10);
+      this.hp.filledSlots = Math.min(this.hp.filledSlots, this.hp.maxSlots);
+    }
+    // Each slot holds the Mob's CON Mod; fill it in when the GM hasn't overridden it.
+    if (!this.hp.slotValue) this.hp.slotValue = Math.max(1, a.con.mod);
+
+    // A Boss gets 1 Action per crawler (Table 50); Elite is a separate "named NPC" flag.
+    this.isBoss = this.bossTier !== "none";
+    this.bossActionsPerCrawler = this.isBoss;
+  }
+
   getRollData() {
-    return { level: this.level, attack: this.attacks[0]?.attack ?? 0, evade: this.evade };
+    const a = this.attributes;
+    return {
+      level: this.level, floor: this.floor,
+      attack: this.attacks[0]?.attack ?? 0,
+      evade: this.evade.value, surprise: this.surprise.value,
+      damageResistance: this.damageResistance.value,
+      str: a.str.mod, dex: a.dex.mod, con: a.con.mod, int: a.int.mod, cha: a.cha.mod
+    };
   }
 }
 
