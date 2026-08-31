@@ -54,7 +54,7 @@ export async function seedWorld() {
       evade: { auto: false, value: m.evade },
       surprise: { auto: false, value: Math.max(10, m.evade - 2) },
       damageResistance: { auto: false, value: m.damageResistance },
-      attacks: m.attacks,
+      attacks: m.attacks.map(a => ({ damageType: "", blast: 0, notes: "", ...a })),
       elite: !!m.elite,
       traits: m.traits
     }

@@ -419,7 +419,8 @@ export class CrawlerActor extends Actor {
 
   /** Add a blank attack entry to a mob. */
   async addAttack() {
-    const attacks = [...(this.system.attacks ?? []), { name: "Attack", attack: 3, damage: "1d6" }];
+    const attacks = [...(this.system.attacks ?? []).map(a => ({ ...a })),
+      { name: "Attack", attack: 3, damage: "1d6", damageType: "", blast: 0, notes: "" }];
     return this.update({ "system.attacks": attacks });
   }
 

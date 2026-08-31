@@ -143,9 +143,10 @@ export class MobData extends foundry.abstract.TypeDataModel {
         attack: num(3),
         damage: new fields.StringField({ initial: "1d6" }),
         damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
-        blast: num(0, { min: 0 }),
+        // `required: false` so Mob actors created before these fields existed still load.
+        blast: new fields.NumberField({ required: false, integer: true, nullable: false, initial: 0, min: 0 }),
         notes: new fields.StringField({ initial: "" })
-      }), { initial: [{ name: "Attack", attack: 3, damage: "1d6" }] }),
+      }), { initial: [{ name: "Attack", attack: 3, damage: "1d6", damageType: "", blast: 0, notes: "" }] }),
       traits: new fields.HTMLField({ initial: "" }),
       gmNotes: new fields.HTMLField({ initial: "" })
     };
