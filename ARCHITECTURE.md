@@ -98,6 +98,12 @@ the roll sum them. Weapons are **wielded**, not worn: a weapon's `hands` (1 or 2
 two-hand budget (`CRAWLER.maxHands`) enforced by `CrawlerActor.equipGear`/`handsInUse`, so they
 are excluded from the worn-slot layout.
 
+**Advancement use tracking.** Each Skill has a `used` boolean. `CrawlerActor.rollSkill` ticks it
+on every roll (pass or fail, at the commit point past the cooldown/Mana guards; Features/Passive
+skills don't roll and aren't tracked). The skill rows surface it as a checkbox the player can
+also clear by hand. It's the input for a future advancement-roll change — nothing consumes it
+yet.
+
 `MobData.prepareDerivedData()` mirrors the book's Mob Stat Block (pp. 270–272): stat scores
 fold to mods, then `evade.value = 10 + dex.mod + floor`, `surprise.value = 10 + int.mod +
 floor`, `damageResistance.value = floor` (each gated by an `auto` flag + a manual `bonus`),

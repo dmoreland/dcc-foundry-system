@@ -124,6 +124,9 @@
         {{/if}}
       </span>
       <span class="crawl-row-controls">
+        <label class="crawl-adv" title="Used for advancement — auto-ticked on any roll (pass or fail); clear after an advancement roll">
+          <input type="checkbox" data-item-id="{{this.id}}" data-field="system.used" {{checked this.used}} {{#unless ../editable}}disabled{{/unless}}>
+        </label>
         {{#if ../editable}}
         <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
           <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
@@ -159,6 +162,9 @@
         {{/if}}
       </span>
       <span class="crawl-row-controls">
+        <label class="crawl-adv" title="Used for advancement — auto-ticked on any roll (pass or fail); clear after an advancement roll">
+          <input type="checkbox" data-item-id="{{this.id}}" data-field="system.used" {{checked this.used}} {{#unless ../editable}}disabled{{/unless}}>
+        </label>
         {{#if ../editable}}
         <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
           <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>
@@ -197,6 +203,9 @@
       <span class="crawl-mono crawl-item-bonus" title="Bonus from equipped gear (applies only while equipped)">{{#if this.gearBonus}}{{crSign this.gearBonus}}{{else}}—{{/if}}</span>
       <span class="crawl-mono crawl-total" title="Attribute mod + Rank + Floor + Item bonus">{{crSign this.total}}</span>
       <span class="crawl-row-controls">
+        <label class="crawl-adv" title="Used for advancement — auto-ticked on any roll (pass or fail); clear after an advancement roll">
+          <input type="checkbox" data-item-id="{{this.id}}" data-field="system.used" {{checked this.used}} {{#unless ../editable}}disabled{{/unless}}>
+        </label>
         {{#if ../editable}}
         <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
           <i class="fa-solid fa-star{{#unless this.pinned}}-half-stroke{{/unless}}"></i>

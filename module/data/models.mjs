@@ -240,6 +240,9 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       damageAttribute: new fields.StringField({ initial: "same", choices: CRAWLER.damageAttributeChoices }),
       rank: num(0, { min: 0, max: 20 }),
       floorBonus: num(0),
+      // Ticked automatically whenever this Skill is rolled (pass or fail); cleared by the player.
+      // Marks the Skill as practised since the last advancement — feeds advancement rolls.
+      used: new fields.BooleanField({ initial: false }),
       checkType: new fields.StringField({ initial: "unopposed", choices: CRAWLER.skillCheckTypes }),
       attackType: new fields.StringField({ initial: "melee", choices: CRAWLER.attackTypes }),
       damage: new fields.StringField({ initial: "" }),

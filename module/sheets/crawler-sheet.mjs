@@ -69,6 +69,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
           // Bonus from currently-equipped gear, shown distinctly from the base Rank and the
           // editable Floor bonus (which stays free for potions / situational buffs).
           gearBonus: actor.skillGearBonus(skill.name),
+          used: s.used,
           total: actor.skillModifier(skill),
           checkType: s.checkType,
           checkTypeLabel: CRAWLER.skillCheckTypes[s.checkType] ?? s.checkType,

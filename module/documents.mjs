@@ -100,6 +100,8 @@ export class CrawlerActor extends Actor {
 
     if (manaCost) await this.update({ "system.mana.value": mana.value - manaCost });
     await this.useCooldown(skill);
+    // Mark the Skill as practised for advancement — ticked on every use, pass or fail.
+    if (!skill.system.used) await skill.update({ "system.used": true });
 
     // Healing never rolls — it's a flat number of Health Bar slots, no attribute or DR involved.
     if (skill.system.healing) {
