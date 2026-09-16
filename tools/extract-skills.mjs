@@ -215,6 +215,7 @@ function parseEntry({ region, name, header, body, typeLine, text, preUpgrade }) 
     buffToHitBonus: false, buffDamage: "",
     healing: false, healSlots: 0,
     manaRestore: false, manaRestoreAmount: 0, manaRestoreFull: false,
+    bonuses: [],
     description: ""
   };
 
@@ -317,6 +318,14 @@ function parseEntry({ region, name, header, body, typeLine, text, preUpgrade }) 
   // dice string. "same" => use s.attribute; a specific stat => that; "none" => no mod.
   if ( dmgStat === "none" ) s.damageAttribute = "none";
   else if ( dmgStat ) s.damageAttribute = (dmgStat === s.attribute) ? "same" : dmgStat;
+
+  // Always-on passive Evade/Surprise Buff (e.g. Dodge: "You gain a +1 Evade Buff.") — only the
+  // base Rank-1 grant, not the Rank 5/10/15 UPGRADES step-ups (those stay prose-only, like every
+  // other upgrade in this extractor; bump the bonus value by hand when a character ranks up).
+  const evadeBuff = preUpgrade.match(/([+-]\d+)\s*Evade\s+Buff\b/i);
+  if ( evadeBuff ) s.bonuses.push({ type: "evade", attribute: "str", skill: "", value: Number(evadeBuff[1]) });
+  const surpriseBuff = preUpgrade.match(/([+-]\d+)\s*Surprise\s+Buff\b/i);
+  if ( surpriseBuff ) s.bonuses.push({ type: "surprise", attribute: "str", skill: "", value: Number(surpriseBuff[1]) });
 
   s.description = buildDescription({ header, body, typeLine, preUpgrade, text });
 
