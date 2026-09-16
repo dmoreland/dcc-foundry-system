@@ -59,7 +59,7 @@
       {{crOptions config.attackTypes system.attackType}}
     </select>
   </label>
-  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Innate damage (fallback) <input type="text" name="system.damage" value="{{system.damage}}" placeholder="e.g. 1d3 unarmed" title="Only used when this Skill is rolled with no weapon (e.g. unarmed Brawl). A weapon that links to this Skill supplies its own damage die — leave blank for a category Skill like Heavy Weapons or Throwing" {{#unless editable}}disabled{{/unless}}></label>
   <label>Damage attribute
     <select name="system.damageAttribute" title="Most melee Attacks damage off the same Stat as to-hit; ranged weapons often hit with DEX but damage with STR" {{#unless editable}}disabled{{/unless}}>
       {{crOptions config.damageAttributeChoices system.damageAttribute}}
@@ -148,12 +148,46 @@
     </select>
   </label>
   {{#if (crEq system.kind "weapon")}}
-  <label>Attack Skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Exact linked Skill name" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Attack Skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Exact linked Skill name" title="The Skill supplies to-hit and Rank damage dice; this weapon supplies the damage die below" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" title="This weapon's own base damage die — one Skill can back many weapons with different dice" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage attribute
+    <select name="system.damageAttribute" title="Leave on Same to use the linked Skill's to-hit Stat; override for e.g. a bow that hits with DEX but damages off STR" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.damageAttributeChoices system.damageAttribute}}
+    </select>
+  </label>
+  <label>Damage type
+    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
+      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
+      {{crOptions config.damageTypes system.damageType}}
+    </select>
+  </label>
+  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="5 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Blast radius (ft) <input type="number" name="system.blast" value="{{system.blast}}" min="0" title="Area-of-effect radius in feet (Blast/Burst); 0 for a single target" {{#unless editable}}disabled{{/unless}}></label>
   {{/if}}
   {{#if (crEq system.kind "armour")}}
   <label>Armour bonus <input type="number" name="system.armour" value="{{system.armour}}" {{#unless editable}}disabled{{/unless}}></label>
   {{/if}}
   {{#if (crEq system.kind "consumable")}}
+  <label class="crawl-check">Thrown weapon (attacks with a Skill)
+    <input type="checkbox" name="system.throwable" {{checked system.throwable}} title="e.g. a Rock or a stick of Dynamite thrown with the Throwing Skill — rolls to-hit and spends one on use" {{#unless editable}}disabled{{/unless}}>
+  </label>
+  {{#if system.throwable}}
+  <label>Attack Skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="e.g. Throwing" title="The Skill supplies to-hit and Rank damage dice; this item supplies the damage die below" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="2d6" title="This item's own base damage die — many thrown items can share one Throwing Skill" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Damage attribute
+    <select name="system.damageAttribute" title="Leave on Same to use the linked Skill's to-hit Stat" {{#unless editable}}disabled{{/unless}}>
+      {{crOptions config.damageAttributeChoices system.damageAttribute}}
+    </select>
+  </label>
+  <label>Damage type
+    <select name="system.damageType" {{#unless editable}}disabled{{/unless}}>
+      <option value=""{{#if (crEq system.damageType "")}} selected{{/if}}>None</option>
+      {{crOptions config.damageTypes system.damageType}}
+    </select>
+  </label>
+  <label>Range <input type="text" name="system.range" value="{{system.range}}" placeholder="20 ft" {{#unless editable}}disabled{{/unless}}></label>
+  <label>Blast radius (ft) <input type="number" name="system.blast" value="{{system.blast}}" min="0" title="Area-of-effect radius in feet (Blast/Burst); 0 for a single target" {{#unless editable}}disabled{{/unless}}></label>
+  {{else}}
   <label class="crawl-check">Has the Healing trait
     <input type="checkbox" name="system.healing" {{checked system.healing}} title="Per the book, healing is never a roll or calculation — using this item heals a flat number of Health Bar slots instead of rolling a Use formula" {{#unless editable}}disabled{{/unless}}>
   </label>
@@ -178,6 +212,7 @@
       {{crOptions config.attributes system.useAttribute}}
     </select>
   </label>
+  {{/if}}
   {{/if}}
   {{/if}}
   {{/if}}

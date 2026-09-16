@@ -64,6 +64,18 @@ Actor and item data shapes are `TypeDataModel` subclasses in
 - **Actors:** `crawler` (player) and `mob`.
 - **Items:** `skill`, `gear`, `ability`.
 
+**Skill / weapon split.** For an **Attack** Skill, ownership is split: the **Skill** owns the
+to-hit (attribute + Rank + floor bonus + check type) and the Rank bonus damage dice; the
+**weapon** (`gear` linking to the Skill by name) owns the base damage die, its type, range and
+blast. This lets one Skill back many weapons — an Axe and a Maul both use "Heavy Weapons" but
+roll different damage, and a Rock and a stick of Dynamite (a consumable with `throwable` set)
+both use "Throwing". A Skill's own `damage` is an *innate/fallback* die, used only when the
+Skill is rolled with no weapon (unarmed Brawl); Spells are their own "weapon" and keep damage on
+the Skill. At damage time `Dice.rollDamage({ skill, weapon })` combines the two: base die from
+the weapon (or Skill fallback), attribute from the Skill (weapon can override), Rank die from
+the Skill. The attack flow threads both a `weaponId` and the Skill `itemId` through the chat-card
+flags (check → pending → evade → damage).
+
 **Derived data.** `CrawlerData.prepareDerivedData()` computes the sheet's live numbers. Each
 attribute folds `value + bonus → total`, then:
 

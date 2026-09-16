@@ -258,7 +258,7 @@
     {{#each weapons}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
       <button type="button" class="crawl-row-name" data-action="rollAttackGear" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#unless this.linkedSkillId}}disabled{{/unless}}>{{this.name}}</button>
-      <span class="crawl-mono">{{#if this.linkedSkillDamage}}{{this.linkedSkillDamage}}{{else}}—{{/if}}</span>
+      <span class="crawl-mono">{{#if this.damageDisplay}}{{this.damageDisplay}}{{else}}—{{/if}}</span>
       <span class="crawl-muted">{{#if this.skill}}Skill: {{this.skill}}{{else}}No linked Skill{{/if}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
@@ -286,9 +286,15 @@
       <span class="crawl-row-controls">
         {{#if ../editable}}
         {{#if (crEq this.kind "consumable")}}
+        {{#if this.throwable}}
+        <button type="button" data-action="rollAttackGear" title="Throw {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#unless this.linkedSkillId}}disabled{{/unless}}>
+          <i class="fa-solid fa-hand-fist"></i>
+        </button>
+        {{else}}
         <button type="button" data-action="useItem" title="Use">
           <i class="fa-solid fa-flask"></i>
         </button>
+        {{/if}}
         {{/if}}
         {{#unless (crEq this.slot "none")}}
         <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">

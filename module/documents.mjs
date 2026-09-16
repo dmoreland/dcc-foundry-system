@@ -53,9 +53,10 @@ export class CrawlerActor extends Actor {
    * description instead of rolling; Spells check/deduct Mana; anything with checkType "evade"
    * (a weapon Attack Skill or an attack Spell) resolves through the reactive-Evade attack flow;
    * everything else is a plain Opposed/Unopposed check. `boostId` is another Utility Skill (the
-   * Aiming pattern) manually selected to buff this roll.
+   * Aiming pattern) manually selected to buff this roll. `weapon` is the Gear item being wielded
+   * (see rollAttackViaGear): the Skill supplies to-hit and Rank dice, the weapon the damage die.
    */
-  async rollSkill(skillId, { advantage = false, disadvantage = false, boostId = null } = {}) {
+  async rollSkill(skillId, { advantage = false, disadvantage = false, boostId = null, weapon = null } = {}) {
     const skill = this.items.get(skillId);
     if (!skill) return;
 
@@ -113,11 +114,18 @@ export class CrawlerActor extends Actor {
 
     const isAttack = skill.system.checkType === "evade";
     const attrLabel = CRAWLER.attributes[attrKey];
+    // A wielded weapon names the attack (an Axe swung via Heavy Weapons reads "Attack — Axe").
+    const attackNoun = skill.system.skillType === "spell" ? "Cast" : "Attack";
     const label = isAttack
-      ? `${skill.system.skillType === "spell" ? "Cast" : "Attack"} — ${skill.name}`
+      ? `${attackNoun} — ${weapon?.name ?? skill.name}`
       : (attrLabel ? `${skill.name} (${attrLabel})` : skill.name);
 
     if (isAttack) {
+      // A throwable/consumable weapon spends one on each committed attack (past the cooldown/mana
+      // guards above). Quantity is pre-checked in rollAttackViaGear.
+      if (weapon?.type === "gear" && weapon.system.kind === "consumable") {
+        await weapon.update({ "system.quantity": Math.max(0, weapon.system.quantity - 1) });
+      }
       const target = game.user.targets.first();
       const size = Dice.targetSizeModifier(this, target);
       return Dice.resolveAttack({
@@ -127,6 +135,7 @@ export class CrawlerActor extends Actor {
         advantage: advantage || size.advantage,
         disadvantage: disadvantage || forceDisadvantage || size.disadvantage,
         itemId: skill.id,
+        weaponId: weapon?.id ?? null,
         rank,
         bonusDamage: size.bonusDamage,
         extraDamage,
@@ -147,14 +156,18 @@ export class CrawlerActor extends Actor {
     });
   }
 
-  /** Attack via a weapon Gear item's linked Skill (looked up by name) — same convenience button
-   *  the Gear tab has always had, just delegating to the merged Skill roll now. */
+  /** Attack with a weapon Gear item: resolve its linked Skill (by name) for the to-hit roll and
+   *  Rank dice, and hand the weapon through so its own damage die drives the damage card. This is
+   *  the primary attack path — a Skill backs many weapons, each with its own damage. */
   async rollAttackViaGear(itemId, options = {}) {
     const gearItem = this.items.get(itemId);
     if (!gearItem) return;
     const skill = this.items.find(i => i.type === "skill" && i.name === gearItem.system.skill);
     if (!skill) return ui.notifications.warn(`No Skill named "${gearItem.system.skill}" found for ${gearItem.name}.`);
-    return this.rollSkill(skill.id, options);
+    if (gearItem.system.kind === "consumable" && gearItem.system.quantity <= 0) {
+      return ui.notifications.warn(`No ${gearItem.name} left.`);
+    }
+    return this.rollSkill(skill.id, { ...options, weapon: gearItem });
   }
 
   /** Use a consumable: decrements quantity, then heals a flat number of slots if it has the
@@ -488,7 +501,11 @@ export class CrawlerActor extends Actor {
     const item = this.items.get(itemId);
     if (!item) return;
     if (item.type === "skill") return this.rollSkill(itemId);
-    if (item.type === "gear") return this.rollAttackViaGear(itemId);
+    if (item.type === "gear") {
+      // A plain consumable (potion) uses itself; a weapon or thrown weapon makes an attack.
+      if (item.system.kind === "consumable" && !item.system.throwable) return this.useItem(itemId);
+      return this.rollAttackViaGear(itemId);
+    }
   }
 }
 

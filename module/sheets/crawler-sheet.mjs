@@ -104,12 +104,15 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     const gear = actor.items.filter(i => i.type === "gear")
       .map(item => {
         const linkedSkill = skillItems.find(s => s.name === item.system.skill);
+        // The weapon's own die drives damage now; fall back to the linked Skill's innate damage.
+        const damageDisplay = item.system.damage || linkedSkill?.system.damage || "";
         return {
           id: item.id, name: item.name, img: item.img, ...item.system,
           kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind,
           slotLabel: CRAWLER.gearSlots[item.system.slot] ?? item.system.slot,
           linkedSkillId: linkedSkill?.id ?? null,
           linkedSkillDamage: linkedSkill?.system.damage ?? "",
+          damageDisplay,
           pinned: hotlistIds.includes(item.id)
         };
       });

@@ -192,11 +192,16 @@ export class MobData extends foundry.abstract.TypeDataModel {
 /* -------------------------------------------- */
 
 /**
- * Skill covers everything skill-shaped: Attack Skills (weapons), Spells, Utility Skills, and
- * static Features (racial traits, class abilities, curses, status effects). `skillType` drives
- * which fields are meaningful; the sheet/item-sheet gate visibility on it. This replaces the
- * old Skill/Ability split — a weapon or spell no longer just links to a Skill by name for its
- * Rank, it *is* the Skill.
+ * Skill covers everything skill-shaped: Attack Skills (weapon proficiencies), Spells, Utility
+ * Skills, and static Features (racial traits, class abilities, curses, status effects).
+ * `skillType` drives which fields are meaningful; the sheet/item-sheet gate visibility on it.
+ *
+ * For an **Attack** Skill the Skill owns the to-hit (attribute + Rank + floor bonus + check
+ * type) and the Rank bonus damage dice — the main damage die lives on the *weapon* (GearData)
+ * that links to this Skill. `damage` here is the Skill's **innate/fallback** damage, used only
+ * when the Skill is rolled with no weapon (e.g. unarmed Brawl) — a category Skill like Heavy
+ * Weapons or Throwing normally leaves it blank and lets each weapon supply the die.
+ * Spells, by contrast, are their own "weapon" and keep their damage on the Skill.
  */
 export class SkillData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -234,14 +239,32 @@ export class SkillData extends foundry.abstract.TypeDataModel {
   }
 }
 
-/** Physical inventory only — armor, consumables, accessories, and the weapon prop itself
- * (which links to its Attack Skill by name for the roll; see SkillData). */
+/**
+ * Physical inventory: armour, consumables, accessories, and — the important case — the
+ * **weapon itself**, which now owns its own base damage.
+ *
+ * A weapon links to an Attack Skill by name (`skill`). The Skill supplies the to-hit roll
+ * (attribute + Rank), the Rank bonus damage dice, and any features/buffs; the *weapon* supplies
+ * the main damage die (`damage`), its type, range and blast. This is what lets one Skill back
+ * many weapons — an Axe and a Maul both use "Heavy Weapons" but roll different damage, and a
+ * Rock and a Stick of Dynamite both use "Throwing" (set `throwable`) with wildly different
+ * damage and blast. See SkillData for the other half of the split.
+ */
 export class GearData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       kind: new fields.StringField({ initial: "weapon", choices: CRAWLER.gearKinds }),
       slot: new fields.StringField({ initial: "none", choices: CRAWLER.gearSlots }),
       skill: new fields.StringField({ initial: "" }),
+      // Weapon damage lives on the item (see class doc). `damageAttribute` "same" defers to the
+      // linked Skill's to-hit attribute; override it for e.g. a bow that hits with DEX, damages
+      // off STR. `throwable` opts a consumable into the attack flow (spends one on a hit-roll).
+      damage: new fields.StringField({ initial: "" }),
+      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
+      damageAttribute: new fields.StringField({ initial: "same", choices: CRAWLER.damageAttributeChoices }),
+      range: new fields.StringField({ initial: "" }),
+      blast: num(0, { min: 0 }),
+      throwable: new fields.BooleanField({ initial: false }),
       armour: num(0),
       quantity: num(1, { min: 0 }),
       equipped: new fields.BooleanField({ initial: false }),

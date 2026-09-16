@@ -112,10 +112,12 @@ onChatCardRender((message, html) => {
         if (flags.mobAttackIndex !== null && flags.mobAttackIndex !== undefined) {
           return actor.rollMobDamage(flags.mobAttackIndex, { crit, doubleDamage: flags.doubleDamage });
         }
-        const item = actor.items.get(flags.itemId);
-        if (!item) return ui.notifications.warn("That weapon is gone.");
+        // Skill drives to-hit/Rank dice; the weapon (when one was wielded) drives the base die.
+        const skill = actor.items.get(flags.itemId) ?? null;
+        const weapon = flags.weaponId ? (actor.items.get(flags.weaponId) ?? null) : null;
+        if (!skill && !weapon) return ui.notifications.warn("That weapon is gone.");
         return Dice.rollDamage({
-          actor, item, crit,
+          actor, skill, weapon, crit,
           rank: flags.rank ?? 0, bonusDamage: flags.bonusDamage ?? 0, doubleDamage: flags.doubleDamage,
           extraDamage: flags.extraDamage ?? ""
         });
