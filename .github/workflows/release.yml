@@ -1,12 +1,37 @@
 name: Release
 
+# Publishing is driven entirely by the "version" field in system.json.
+#
+#   1. Bump "version" in system.json in your PR.
+#   2. Merge the PR to main.
+#   3. This workflow tags vX.Y.Z, builds crawler-d20.zip, and publishes the
+#      GitHub Release — with system.json's manifest/download URLs rewritten to
+#      point at that exact release.
+#
+# No manual `git tag` step. If you do push a `v*` tag by hand it still works,
+# but the job fails loudly unless the tag matches system.json's version, so a
+# stale tag can never publish a mislabelled release again.
+
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-publish even if the release already exists"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   release:
@@ -14,14 +39,65 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Zip system
+      - name: Resolve version
+        id: v
         run: |
-          zip -r crawler-d20.zip system.json module css lang templates LICENSE README.md
+          set -euo pipefail
+          MANIFEST_VERSION="$(jq -r '.version' system.json)"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match system.json version $MANIFEST_VERSION."
+              echo "::error::Bump system.json to $VERSION (or delete the tag) and try again."
+              exit 1
+            fi
+          else
+            VERSION="$MANIFEST_VERSION"
+          fi
+          case "$VERSION" in
+            [0-9]*.[0-9]*.[0-9]*) : ;;
+            *) echo "::error::system.json version '$VERSION' is not X.Y.Z"; exit 1 ;;
+          esac
+          echo "version=$VERSION"     >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION"        >> "$GITHUB_OUTPUT"
 
-      - name: Create release
+      - name: Skip if this version is already released
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.force }}" != "true" ] && gh release view "${{ steps.v.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::notice::${{ steps.v.outputs.tag }} is already released — nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pin manifest / download URLs to this release
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          V='${{ steps.v.outputs.version }}'
+          REL="https://github.com/${{ github.repository }}/releases"
+          jq --arg v "$V" --arg rel "$REL" '
+            .version  = $v
+          | .manifest = "\($rel)/latest/download/system.json"
+          | .download = "\($rel)/download/v\($v)/crawler-d20.zip"
+          ' system.json > system.json.tmp && mv system.json.tmp system.json
+          echo "Packaged system.json:"; jq '{version, manifest, download}' system.json
+
+      - name: Build package
+        if: steps.gate.outputs.skip == 'false'
+        run: zip -r crawler-d20.zip system.json module css lang templates LICENSE README.md
+
+      - name: Publish release
+        if: steps.gate.outputs.skip == 'false'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.v.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             crawler-d20.zip
             system.json
-          generate_release_notes: true

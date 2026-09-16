@@ -2,7 +2,7 @@
   "id": "crawler-d20",
   "title": "CRAWL — World Dungeon d20",
   "description": "An unofficial d20 system for televised dungeon crawling. Attributes drive skills, the audience drives everything else.",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "compatibility": {
     "minimum": "13",
     "verified": "14",
@@ -30,6 +30,6 @@
   "grid": { "distance": 5, "units": "ft" },
   "background": "",
   "url": "https://github.com/dmoreland/dcc-foundry-system",
-  "manifest": "https://raw.githubusercontent.com/dmoreland/dcc-foundry-system/main/system.json",
+  "manifest": "https://github.com/dmoreland/dcc-foundry-system/releases/latest/download/system.json",
   "download": "https://github.com/dmoreland/dcc-foundry-system/releases/latest/download/crawler-d20.zip"
 }
