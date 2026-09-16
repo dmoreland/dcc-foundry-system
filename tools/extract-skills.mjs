@@ -304,6 +304,14 @@ function parseEntry({ region, name, header, body, typeLine, text, preUpgrade }) 
       s.attackType = (rangedByFeet && !burstOrSelf) ? "ranged" : "melee";
     } else if ( opposed ) {
       s.checkType = "opposed";
+    } else if ( s.manaCost > 0 || s.healing || s.manaRestore ) {
+      // The book tags most non-attack spells' type line "Passive" too (e.g. "Heal, Interrupt,
+      // Passive Mana Cost: 2") — there it's action-economy shorthand for "doesn't cost an
+      // Action to cast," NOT "does nothing." checkType "passive" in this system means the
+      // latter and makes rollSkill skip Mana deduction and the healing/effect entirely (see
+      // documents.mjs rollSkill), so any spell that costs Mana or has an effect must be
+      // "unopposed" regardless of that tag.
+      s.checkType = "unopposed";
     } else {
       s.checkType = "passive";
     }
