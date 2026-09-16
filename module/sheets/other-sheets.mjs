@@ -137,7 +137,8 @@ export class CrawlerItemSheet extends RichTextMixin(HandlebarsMixin(ItemSheetV2)
       isSpell: skillType === "spell",
       isUtility: skillType === "utility",
       isFeature: skillType === "feature",
-      bonuses: isGear ? (item.system.bonuses ?? []).map((b, index) => ({ index, ...b })) : [],
+      hasBonuses: isGear || isSkill,
+      bonuses: (isGear || isSkill) ? (item.system.bonuses ?? []).map((b, index) => ({ index, ...b })) : [],
       editing: { description: this.editingFields.has("description") },
       rendered: { description: await enrich(item.system.description, { relativeTo: item }) }
     });

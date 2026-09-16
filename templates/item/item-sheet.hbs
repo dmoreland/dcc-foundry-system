@@ -232,9 +232,9 @@
 
 </section>
 
-{{#if isGear}}
+{{#if hasBonuses}}
 <section class="crawl-item-bonuses">
-  <label class="crawl-notes-label">Equipped bonuses <span class="crawl-muted">— applied to the wielder while this item is equipped</span></label>
+  <label class="crawl-notes-label">{{#if isGear}}Equipped bonuses <span class="crawl-muted">— applied to the wielder while this item is equipped</span>{{else}}Passive bonuses <span class="crawl-muted">— applied automatically while you have this Skill</span>{{/if}}</label>
   <ol class="crawl-bonus-list">
     {{#each bonuses}}
     <li class="crawl-bonus-row" data-index="{{this.index}}">
@@ -245,7 +245,7 @@
       <select name="system.bonuses.{{this.index}}.attribute" {{#unless ../editable}}disabled{{/unless}}>
         {{crOptions ../config.attributes this.attribute}}
       </select>
-      {{else}}
+      {{else if (crEq this.type "skill")}}
       <input type="text" name="system.bonuses.{{this.index}}.skill" value="{{this.skill}}" placeholder="Exact Skill name" {{#unless ../editable}}disabled{{/unless}}>
       {{/if}}
       <input type="number" name="system.bonuses.{{this.index}}.value" value="{{this.value}}" title="Signed bonus, e.g. 2 or -1" {{#unless ../editable}}disabled{{/unless}}>
@@ -254,7 +254,7 @@
       {{/if}}
     </li>
     {{else}}
-    <li class="crawl-empty">No bonuses. Add one to boost an Attribute or Skill while equipped.</li>
+    <li class="crawl-empty">No bonuses. Add one to boost an Attribute, Skill, Evade, or Surprise{{#if isGear}} while equipped{{/if}}.</li>
     {{/each}}
   </ol>
   {{#if editable}}

@@ -20,10 +20,12 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       showTab: CrawlerSheet._onShowTab,
       rollAttribute: CrawlerSheet._onRollAttribute,
       rollEvadeCheck: CrawlerSheet._onRollEvadeCheck,
+      rollSurpriseCheck: CrawlerSheet._onRollSurpriseCheck,
       rollSkill: CrawlerSheet._onRollSkill,
       rollAttackGear: CrawlerSheet._onRollAttackGear,
       useItem: CrawlerSheet._onUseItem,
       adjustRank: CrawlerSheet._onAdjustRank,
+      adjustQuantity: CrawlerSheet._onAdjustQuantity,
       toggleEquip: CrawlerSheet._onToggleEquip,
       createItem: CrawlerSheet._onCreateItem,
       editItem: CrawlerSheet._onEditItem,
@@ -111,6 +113,10 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     });
     for (const s of [...attackSkills, ...spellSkills]) s.boosts = boostsFor(s);
 
+    // Utility Skills scoped to buff a reactive Evade/Surprise Check instead of an Attack/Spell.
+    const evadeBoosts = utilitySkills.filter(s => s.buffScope === "evade");
+    const surpriseBoosts = utilitySkills.filter(s => s.buffScope === "surprise");
+
     const gear = actor.items.filter(i => i.type === "gear")
       .map(item => {
         const linkedSkill = skillItems.find(s => s.name === item.system.skill);
@@ -188,6 +194,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       spellSkills,
       utilitySkills,
       features,
+      evadeBoosts,
+      surpriseBoosts,
       weapons: gear.filter(g => g.kind === "weapon"),
       otherGear: gear.filter(g => g.kind !== "weapon"),
       gearSlots,
@@ -253,8 +261,14 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     return this.document.rollAttribute(target.dataset.key, rollModifiers(event));
   }
 
-  static async _onRollEvadeCheck(event) {
-    return this.document.rollEvadeCheck(rollModifiers(event));
+  static async _onRollEvadeCheck(event, target) {
+    const boostId = target.closest(".crawl-stat")?.querySelector("select[data-boost]")?.value || null;
+    return this.document.rollEvadeCheck({ ...rollModifiers(event), boostId });
+  }
+
+  static async _onRollSurpriseCheck(event, target) {
+    const boostId = target.closest(".crawl-stat")?.querySelector("select[data-boost]")?.value || null;
+    return this.document.rollSurpriseCheck({ ...rollModifiers(event), boostId });
   }
 
   static async _onRollSkill(event, target) {
@@ -277,6 +291,14 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     const delta = Number(target.dataset.delta ?? 1);
     const rank = Math.clamp(item.system.rank + delta, 0, 20);
     return item.update({ "system.rank": rank });
+  }
+
+  static async _onAdjustQuantity(event, target) {
+    const item = this.document.items.get(target.closest("[data-item-id]").dataset.itemId);
+    if (!item) return;
+    const delta = Number(target.dataset.delta ?? 1);
+    const quantity = Math.max(0, item.system.quantity + delta);
+    return item.update({ "system.quantity": quantity });
   }
 
   static async _onToggleEquip(event, target) {

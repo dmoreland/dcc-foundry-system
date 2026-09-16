@@ -19,6 +19,8 @@
   font-family: "Signika", sans-serif;
   padding: 10px 12px 14px;
   gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* ApplicationV2 requires each template part to have a single root element, so
@@ -252,7 +254,7 @@
 .crawl-row-skill { grid-template-columns: 1fr 42px 78px 46px 40px 46px 100px; }
 .crawl-item-bonus { color: var(--crawl-muted); text-align: center; }
 .crawl-attr-gear { font-size: 0.8em; color: var(--crawl-brand); }
-.crawl-adv { display: inline-flex; align-items: center; }
+.crawl-adv { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 20px; margin-right: 4px; }
 .crawl-adv input { margin: 0; width: 15px; height: 15px; cursor: pointer; accent-color: var(--crawl-brand); }
 .crawl-advance-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
 .crawl-advance-bar button { padding: 3px 8px; }

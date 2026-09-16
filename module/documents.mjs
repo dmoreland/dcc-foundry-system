@@ -240,11 +240,36 @@ export class CrawlerActor extends Actor {
 
   /** Roll Evade on demand, outside the reactive attack flow — e.g. clicking it on your own
    *  sheet to check your odds. Posts a plain check card with no target/hit resolution; the
-   *  real defensive roll happens via rollEvade(flags) below, triggered from a pending attack. */
-  async rollEvadeCheck({ advantage = false, disadvantage = false } = {}) {
+   *  real defensive roll happens via rollEvade(flags) below, triggered from a pending attack.
+   *  `boostId` is a Utility Skill (buffScope "evade") manually selected to buff this roll. */
+  async rollEvadeCheck({ advantage = false, disadvantage = false, boostId = null } = {}) {
     const dexMod = this.system.attributes?.dex?.mod ?? 0;
-    const mod = dexMod + (this.system.evade?.bonus ?? 0) + (this.system.injuryPenalty ?? 0);
-    return Dice.rollCheck({ actor: this, label: "Evade", mod, advantage, disadvantage });
+    let mod = dexMod + (this.system.evade?.bonus ?? 0) + (this.system.equipBonuses?.evade ?? 0)
+      + (this.system.injuryPenalty ?? 0);
+    let forceDisadvantage = false;
+    const boost = boostId ? this.items.get(boostId) : null;
+    if (boost) {
+      if (boost.system.buffToHitBonus) mod += boost.system.rank + boost.system.floorBonus;
+      if (boost.system.buffRequiresDisadvantage) forceDisadvantage = true;
+    }
+    return Dice.rollCheck({ actor: this, label: "Evade", mod, advantage, disadvantage: disadvantage || forceDisadvantage });
+  }
+
+  /** Roll Surprise on demand — the counterpart to rollEvadeCheck. Surprise's `value` is the
+   *  passive number others roll against to catch you off guard; this is the active
+   *  1d20 + INT mod check for when you need to actively resist/notice an ambush.
+   *  `boostId` is a Utility Skill (buffScope "surprise") manually selected to buff this roll. */
+  async rollSurpriseCheck({ advantage = false, disadvantage = false, boostId = null } = {}) {
+    const intMod = this.system.attributes?.int?.mod ?? 0;
+    let mod = intMod + (this.system.surprise?.bonus ?? 0) + (this.system.equipBonuses?.surprise ?? 0)
+      + (this.system.injuryPenalty ?? 0);
+    let forceDisadvantage = false;
+    const boost = boostId ? this.items.get(boostId) : null;
+    if (boost) {
+      if (boost.system.buffToHitBonus) mod += boost.system.rank + boost.system.floorBonus;
+      if (boost.system.buffRequiresDisadvantage) forceDisadvantage = true;
+    }
+    return Dice.rollCheck({ actor: this, label: "Surprise", mod, advantage, disadvantage: disadvantage || forceDisadvantage });
   }
 
   /**

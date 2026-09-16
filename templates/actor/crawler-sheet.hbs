@@ -55,10 +55,26 @@
       </div>
     </div>
 
-    <div class="crawl-stat-grid crawl-stat-grid-3">
+    <div class="crawl-stat-grid">
       <div class="crawl-stat">
         <span>Evade <span class="crawl-hint-icon" title="{{system.evade.value}} is the passive value Mobs roll against (GMs don't roll defense). Your own defense is an active 1d20 + DEX mod roll, either via the Evade button in chat when attacked, or click this number to roll it manually.">?</span></span>
         <button type="button" class="crawl-stat-roll" data-action="rollEvadeCheck" title="Roll Evade (Shift = Advantage, Ctrl = Disadvantage)"><strong>{{system.evade.value}}</strong></button>
+        {{#if evadeBoosts.length}}
+        <select data-boost class="crawl-boost-select">
+          <option value="">No boost</option>
+          {{#each evadeBoosts}}<option value="{{this.id}}">{{this.name}}</option>{{/each}}
+        </select>
+        {{/if}}
+      </div>
+      <div class="crawl-stat">
+        <span>Surprise <span class="crawl-hint-icon" title="{{system.surprise.value}} is the passive value others roll against to catch you off guard. Your own active check is 1d20 + INT mod — click this number to roll it.">?</span></span>
+        <button type="button" class="crawl-stat-roll" data-action="rollSurpriseCheck" title="Roll Surprise (Shift = Advantage, Ctrl = Disadvantage)"><strong>{{system.surprise.value}}</strong></button>
+        {{#if surpriseBoosts.length}}
+        <select data-boost class="crawl-boost-select">
+          <option value="">No boost</option>
+          {{#each surpriseBoosts}}<option value="{{this.id}}">{{this.name}}</option>{{/each}}
+        </select>
+        {{/if}}
       </div>
       <div class="crawl-stat"><span>Damage Resistance</span><strong>{{system.damageResistance.value}}</strong></div>
       <div class="crawl-stat"><span>Gold</span>
@@ -302,8 +318,24 @@
   <ol class="crawl-list">
     {{#each otherGear}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
+      {{#if (crEq this.kind "consumable")}}
+      {{#if this.throwable}}
+      <button type="button" class="crawl-row-name" data-action="rollAttackGear" title="Throw {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#unless this.linkedSkillId}}disabled{{/unless}}>{{this.name}}</button>
+      {{else}}
+      <button type="button" class="crawl-row-name" data-action="useItem" title="Use {{this.name}}">{{this.name}}</button>
+      {{/if}}
+      {{else}}
       <span class="crawl-row-name">{{this.name}}</span>
+      {{/if}}
+      {{#if (crEq this.kind "consumable")}}
+      <span class="crawl-rank">
+        <button type="button" data-action="adjustQuantity" data-delta="-1" title="Remove one" {{#unless ../editable}}disabled{{/unless}}>−</button>
+        <span class="crawl-mono">{{this.quantity}}</span>
+        <button type="button" data-action="adjustQuantity" data-delta="1" title="Add one" {{#unless ../editable}}disabled{{/unless}}>+</button>
+      </span>
+      {{else}}
       <span class="crawl-mono">×{{this.quantity}}</span>
+      {{/if}}
       <span class="crawl-muted">{{this.kindLabel}}{{#if this.healing}} · Heals {{this.healSlots}}{{/if}}{{#if this.manaRestore}} · {{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{/if}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}

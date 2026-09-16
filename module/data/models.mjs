@@ -38,6 +38,10 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
         bonus: num(0),
         value: num(11)
       }),
+      surprise: new fields.SchemaField({
+        bonus: num(0),
+        value: num(11)
+      }),
       damageResistance: new fields.SchemaField({
         bonus: num(0),
         value: num(0)
@@ -62,9 +66,11 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
   prepareDerivedData() {
     const a = this.attributes;
 
-    // Bonuses granted by currently-equipped gear, keyed for Attributes and Skills. Stashed on
-    // the model so the actor's skillModifier / getRollData can read the Skill side too.
-    this.equipBonuses = this._collectEquipmentBonuses();
+    // Bonuses granted by currently-equipped gear and by owned Skills (a Feature/racial trait
+    // applies passively just by being owned — no equip toggle). Keyed for Attributes, Skills,
+    // Evade and Surprise. Stashed on the model so the actor's skillModifier / getRollData can
+    // read the Skill side too.
+    this.equipBonuses = this._collectPassiveBonuses();
 
     // Effective attribute values fold in any flat bonus from race, class or elixirs (the
     // "Enhanced" score) plus equipped-gear bonuses; the modifier is what gets added to rolls.
@@ -85,22 +91,27 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
       if (item.type !== "gear") continue;
       if (item.system.equipped) armour += item.system.armour ?? 0;
     }
-    this.evade.value = 10 + a.dex.mod + this.floor + this.evade.bonus;
+    this.evade.value = 10 + a.dex.mod + this.floor + this.evade.bonus + this.equipBonuses.evade;
+    this.surprise.value = 10 + a.int.mod + this.floor + this.surprise.bonus + this.equipBonuses.surprise;
     this.damageResistance.value = armour + this.damageResistance.bonus;
 
     this.mana.value = Math.min(this.mana.value, this.mana.max);
   }
 
   /**
-   * Sum the bonuses from every equipped gear item into `{ attributes: {str: n, …},
-   * skills: {<slug>: n, …} }`. Skill keys are slugified to match the actor's `@skills.<slug>`
-   * roll data and skillModifier lookup.
+   * Sum the bonuses from every equipped gear item and every owned Skill (a Skill's bonuses
+   * apply just by being owned — Features/racial traits have no equip toggle) into
+   * `{ attributes: {str: n, …}, skills: {<slug>: n, …}, evade: n, surprise: n }`. Skill keys
+   * are slugified to match the actor's `@skills.<slug>` roll data and skillModifier lookup.
    */
-  _collectEquipmentBonuses() {
+  _collectPassiveBonuses() {
     const attributes = {};
     const skills = {};
+    let evade = 0;
+    let surprise = 0;
     for (const item of this.parent?.items ?? []) {
-      if (item.type !== "gear" || !item.system.equipped) continue;
+      if (item.type === "gear" && !item.system.equipped) continue;
+      if (item.type !== "gear" && item.type !== "skill") continue;
       for (const b of item.system.bonuses ?? []) {
         const value = Number(b.value) || 0;
         if (!value) continue;
@@ -109,16 +120,20 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
         } else if (b.type === "skill" && b.skill) {
           const slug = b.skill.slugify({ replacement: "_", strict: true });
           skills[slug] = (skills[slug] ?? 0) + value;
+        } else if (b.type === "evade") {
+          evade += value;
+        } else if (b.type === "surprise") {
+          surprise += value;
         }
       }
     }
-    return { attributes, skills };
+    return { attributes, skills, evade, surprise };
   }
 
   getRollData() {
     const data = {
       level: this.level, floor: this.floor,
-      evade: this.evade.value, damageResistance: this.damageResistance.value
+      evade: this.evade.value, surprise: this.surprise.value, damageResistance: this.damageResistance.value
     };
     for (const [key, attr] of Object.entries(this.attributes)) {
       data[key] = attr.mod;
@@ -265,6 +280,15 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       manaRestore: new fields.BooleanField({ initial: false }),
       manaRestoreAmount: num(0, { min: 0 }),
       manaRestoreFull: new fields.BooleanField({ initial: false }),
+      // Passive bonuses this Skill grants just by being owned — no equip toggle, unlike Gear.
+      // Typically used on a Feature (racial trait/class ability) to add e.g. +2 Evade, but any
+      // Skill can carry one. Folded in by CrawlerData.prepareDerivedData alongside gear bonuses.
+      bonuses: new fields.ArrayField(new fields.SchemaField({
+        type: new fields.StringField({ initial: "attribute", choices: CRAWLER.bonusTargets }),
+        attribute: new fields.StringField({ initial: "str", choices: CRAWLER.attributes }),
+        skill: new fields.StringField({ initial: "" }),
+        value: num(0)
+      }), { initial: [] }),
       description: new fields.HTMLField({ initial: "" })
     };
   }
