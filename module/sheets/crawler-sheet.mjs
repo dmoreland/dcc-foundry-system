@@ -66,6 +66,9 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
           damageAttribute: s.damageAttribute === "same" ? s.attribute : s.damageAttribute,
           rank: s.rank,
           floorBonus: s.floorBonus,
+          // Bonus from currently-equipped gear, shown distinctly from the base Rank and the
+          // editable Floor bonus (which stays free for potions / situational buffs).
+          gearBonus: actor.skillGearBonus(skill.name),
           total: actor.skillModifier(skill),
           checkType: s.checkType,
           checkTypeLabel: CRAWLER.skillCheckTypes[s.checkType] ?? s.checkType,
@@ -118,12 +121,14 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       });
 
     // One occupant per exclusive slot (head/torso/arms/hands/legs/feet); accessories stack to 10.
+    // Weapons are held in hands (a separate two-hand budget), not worn, so they're excluded here.
     const exclusiveSlots = ["head", "torso", "arms", "hands", "legs", "feet"];
     const gearSlots = exclusiveSlots.map(slot => ({
       slot, label: CRAWLER.gearSlots[slot],
-      item: gear.find(g => g.slot === slot && g.equipped) ?? null
+      item: gear.find(g => g.slot === slot && g.equipped && g.kind !== "weapon") ?? null
     }));
-    const accessories = gear.filter(g => g.slot === "accessory" && g.equipped);
+    const accessories = gear.filter(g => g.slot === "accessory" && g.equipped && g.kind !== "weapon");
+    const handsInUse = this.document.handsInUse();
 
     const hotlist = hotlistIds
       .map(id => actor.items.get(id))
@@ -167,6 +172,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
         key, label, abbr: key.toUpperCase(),
         value: system.attributes[key].value,
         bonus: system.attributes[key].bonus,
+        gearBonus: system.equipBonuses?.attributes?.[key] ?? 0,
         total: system.attributes[key].total,
         mod: system.attributes[key].mod
       })),
@@ -179,6 +185,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       otherGear: gear.filter(g => g.kind !== "weapon"),
       gearSlots,
       accessories,
+      handsInUse,
+      maxHands: CRAWLER.maxHands,
       hotlist,
       effects,
       hpSlots: Array.from({ length: 10 }, (_, i) => ({

@@ -93,7 +93,7 @@
       <button type="button" class="crawl-attr-roll" data-action="rollAttribute" data-key="{{this.key}}" title="Roll {{this.label}} (Shift = Advantage, Ctrl = Disadvantage)">
         <span class="crawl-attr-abbr">{{this.abbr}}</span>
         <span class="crawl-attr-total">{{crSign this.mod}}</span>
-        <span class="crawl-attr-score">{{this.total}}</span>
+        <span class="crawl-attr-score">{{this.total}}{{#if this.gearBonus}} <span class="crawl-attr-gear" title="Includes {{crSign this.gearBonus}} from equipped gear">({{crSign this.gearBonus}})</span>{{/if}}</span>
       </button>
       <div class="crawl-attr-inputs">
         <input type="number" name="system.attributes.{{this.key}}.value" value="{{this.value}}" min="0" title="Base score" {{#unless ../editable}}disabled{{/unless}}>
@@ -114,6 +114,7 @@
       <span class="crawl-mono">{{#if this.healing}}Heals {{this.healSlots}}{{else if this.manaRestore}}{{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{else}}{{this.damage}} + {{crUpper this.damageAttribute}}{{/if}}</span>
       <span class="crawl-muted">
         {{this.attackTypeLabel}}{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
+        {{#if this.gearBonus}} · {{crSign this.gearBonus}} gear{{/if}}
         {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
         {{#if this.boosts.length}}
         <select data-boost class="crawl-boost-select">
@@ -148,6 +149,7 @@
       <span class="crawl-mono">{{#if this.healing}}Heals {{this.healSlots}}{{else if this.manaRestore}}{{#if this.manaRestoreFull}}Full Mana{{else}}+{{this.manaRestoreAmount}} Mana{{/if}}{{else}}{{this.damage}} + {{crUpper this.damageAttribute}}{{/if}}</span>
       <span class="crawl-muted">
         {{this.manaCost}} Mana{{#if this.range}} · {{this.range}}{{/if}}{{#if this.damageTypeLabel}} · {{this.damageTypeLabel}}{{/if}}
+        {{#if this.gearBonus}} · {{crSign this.gearBonus}} gear{{/if}}
         {{#if this.cooldownRemaining}} · Cooldown {{this.cooldownRemaining}}{{/if}}
         {{#if this.boosts.length}}
         <select data-boost class="crawl-boost-select">
@@ -176,7 +178,7 @@
 
   <h3 class="crawl-subhead">Utility</h3>
   <div class="crawl-list-head crawl-row-skill">
-    <span>Skill</span><span>Attr</span><span>Rank</span><span>Floor</span><span>Total</span><span></span>
+    <span>Skill</span><span>Attr</span><span>Rank</span><span>Floor</span><span>Item</span><span>Total</span><span></span>
   </div>
   <ol class="crawl-list">
     {{#each utilitySkills}}
@@ -191,8 +193,9 @@
         <span class="crawl-mono">{{this.rank}}</span>
         <button type="button" data-action="adjustRank" data-delta="1" {{#unless ../editable}}disabled{{/unless}}>+</button>
       </span>
-      <input class="crawl-mono crawl-tiny" type="number" data-item-id="{{this.id}}" data-field="system.floorBonus" data-dtype="Number" value="{{this.floorBonus}}" title="Temporary situational bonus" {{#unless ../editable}}disabled{{/unless}}>
-      <span class="crawl-mono crawl-total">{{crSign this.total}}</span>
+      <input class="crawl-mono crawl-tiny" type="number" data-item-id="{{this.id}}" data-field="system.floorBonus" data-dtype="Number" value="{{this.floorBonus}}" title="Temporary situational bonus — e.g. a potion buff" {{#unless ../editable}}disabled{{/unless}}>
+      <span class="crawl-mono crawl-item-bonus" title="Bonus from equipped gear (applies only while equipped)">{{#if this.gearBonus}}{{crSign this.gearBonus}}{{else}}—{{/if}}</span>
+      <span class="crawl-mono crawl-total" title="Attribute mod + Rank + Floor + Item bonus">{{crSign this.total}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
         <button type="button" data-action="{{#if this.pinned}}unpinItem{{else}}pinItem{{/if}}" title="{{#if this.pinned}}Unpin{{else}}Pin to Hotlist{{/if}}">
@@ -253,13 +256,13 @@
     </div>
   </div>
 
-  <h3 class="crawl-subhead">Weapons</h3>
+  <h3 class="crawl-subhead">Weapons <span class="crawl-muted">— hands {{handsInUse}}/{{maxHands}}</span></h3>
   <ol class="crawl-list">
     {{#each weapons}}
     <li class="crawl-row crawl-row-gear draggable" data-item-id="{{this.id}}">
       <button type="button" class="crawl-row-name" data-action="rollAttackGear" title="Attack with {{this.name}} (Shift = Advantage, Ctrl = Disadvantage)" {{#unless this.linkedSkillId}}disabled{{/unless}}>{{this.name}}</button>
       <span class="crawl-mono">{{#if this.damageDisplay}}{{this.damageDisplay}}{{else}}—{{/if}}</span>
-      <span class="crawl-muted">{{#if this.skill}}Skill: {{this.skill}}{{else}}No linked Skill{{/if}}</span>
+      <span class="crawl-muted">{{#if (crEq this.hands 2)}}2H{{else}}1H{{/if}}{{#if this.skill}} · {{this.skill}}{{else}} · No linked Skill{{/if}}{{#if this.equipped}} · wielded{{/if}}</span>
       <span class="crawl-row-controls">
         {{#if ../editable}}
         <button type="button" data-action="toggleEquip" title="{{#if this.equipped}}Unequip{{else}}Equip{{/if}}">

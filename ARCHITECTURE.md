@@ -86,6 +86,18 @@ attribute folds `value + bonus → total`, then:
 Equipped `gear` feeds Defense, so Defense is recomputed from items each prepare pass rather
 than stored. `hp`/`mana` current values are clamped to their maxes.
 
+**Equip bonuses & handedness.** Each `gear` item carries a `bonuses` list; while the item is
+**equipped**, each entry adds to a core Attribute (by key) or a Skill (by name).
+`CrawlerData.prepareDerivedData` collects them once into `system.equipBonuses`
+(`{ attributes, skills }`): Attribute bonuses fold into `attr.total`/`attr.mod` (so they flow
+into every downstream formula), and the Skill side is read back by `CrawlerActor.skillModifier`,
+`skillGearBonus`, `getRollData` (`@skills.<slug>`), and the actual `rollSkill` modifier. The
+components stay **distinct** on the sheet — base Rank, the editable Floor bonus (kept free for
+potions/situational buffs), and a read-only Item column for the gear bonus — while the Total and
+the roll sum them. Weapons are **wielded**, not worn: a weapon's `hands` (1 or 2) is spent from a
+two-hand budget (`CRAWLER.maxHands`) enforced by `CrawlerActor.equipGear`/`handsInUse`, so they
+are excluded from the worn-slot layout.
+
 `MobData.prepareDerivedData()` mirrors the book's Mob Stat Block (pp. 270–272): stat scores
 fold to mods, then `evade.value = 10 + dex.mod + floor`, `surprise.value = 10 + int.mod +
 floor`, `damageResistance.value = floor` (each gated by an `auto` flag + a manual `bonus`),

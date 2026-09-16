@@ -142,12 +142,20 @@
       {{crOptions config.gearKinds system.kind}}
     </select>
   </label>
+  {{#unless (crEq system.kind "weapon")}}
   <label>Slot
     <select name="system.slot" {{#unless editable}}disabled{{/unless}}>
       {{crOptions config.gearSlots system.slot}}
     </select>
   </label>
+  {{/unless}}
   {{#if (crEq system.kind "weapon")}}
+  <label>Hands
+    <select name="system.hands" title="A Crawler has two hands; a two-handed weapon fills both" {{#unless editable}}disabled{{/unless}}>
+      <option value="1"{{#if (crEq system.hands 1)}} selected{{/if}}>One-handed</option>
+      <option value="2"{{#if (crEq system.hands 2)}} selected{{/if}}>Two-handed</option>
+    </select>
+  </label>
   <label>Attack Skill <input type="text" name="system.skill" value="{{system.skill}}" placeholder="Exact linked Skill name" title="The Skill supplies to-hit and Rank damage dice; this weapon supplies the damage die below" {{#unless editable}}disabled{{/unless}}></label>
   <label>Damage <input type="text" name="system.damage" value="{{system.damage}}" placeholder="1d8" title="This weapon's own base damage die — one Skill can back many weapons with different dice" {{#unless editable}}disabled{{/unless}}></label>
   <label>Damage attribute
@@ -223,6 +231,39 @@
   {{/if}}
 
 </section>
+
+{{#if isGear}}
+<section class="crawl-item-bonuses">
+  <label class="crawl-notes-label">Equipped bonuses <span class="crawl-muted">— applied to the wielder while this item is equipped</span></label>
+  <ol class="crawl-bonus-list">
+    {{#each bonuses}}
+    <li class="crawl-bonus-row" data-index="{{this.index}}">
+      <select name="system.bonuses.{{this.index}}.type" {{#unless ../editable}}disabled{{/unless}}>
+        {{crOptions ../config.bonusTargets this.type}}
+      </select>
+      {{#if (crEq this.type "attribute")}}
+      <select name="system.bonuses.{{this.index}}.attribute" {{#unless ../editable}}disabled{{/unless}}>
+        {{crOptions ../config.attributes this.attribute}}
+      </select>
+      {{else}}
+      <input type="text" name="system.bonuses.{{this.index}}.skill" value="{{this.skill}}" placeholder="Exact Skill name" {{#unless ../editable}}disabled{{/unless}}>
+      {{/if}}
+      <input type="number" name="system.bonuses.{{this.index}}.value" value="{{this.value}}" title="Signed bonus, e.g. 2 or -1" {{#unless ../editable}}disabled{{/unless}}>
+      {{#if ../editable}}
+      <button type="button" class="crawl-bonus-remove" data-action="removeBonus" title="Remove bonus"><i class="fa-solid fa-trash"></i></button>
+      {{/if}}
+    </li>
+    {{else}}
+    <li class="crawl-empty">No bonuses. Add one to boost an Attribute or Skill while equipped.</li>
+    {{/each}}
+  </ol>
+  {{#if editable}}
+  <div class="crawl-list-foot">
+    <button type="button" data-action="addBonus">Add bonus</button>
+  </div>
+  {{/if}}
+</section>
+{{/if}}
 
 <section class="crawl-item-desc">
   <label class="crawl-notes-label">Description</label>

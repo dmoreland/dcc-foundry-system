@@ -109,7 +109,11 @@ export class CrawlerItemSheet extends RichTextMixin(HandlebarsMixin(ItemSheetV2)
     classes: ["crawl", "sheet", "item"],
     position: { width: 520, height: 680 },
     window: { resizable: true },
-    form: { submitOnChange: true, closeOnSubmit: false }
+    form: { submitOnChange: true, closeOnSubmit: false },
+    actions: {
+      addBonus: CrawlerItemSheet._onAddBonus,
+      removeBonus: CrawlerItemSheet._onRemoveBonus
+    }
   };
 
   static PARTS = {
@@ -120,6 +124,7 @@ export class CrawlerItemSheet extends RichTextMixin(HandlebarsMixin(ItemSheetV2)
     const context = await super._prepareContext(options);
     const item = this.document;
     const isSkill = item.type === "skill";
+    const isGear = item.type === "gear";
     const skillType = isSkill ? item.system.skillType : null;
     return Object.assign(context, {
       item,
@@ -127,13 +132,28 @@ export class CrawlerItemSheet extends RichTextMixin(HandlebarsMixin(ItemSheetV2)
       editable: this.isEditable,
       config: CRAWLER,
       isSkill,
-      isGear: item.type === "gear",
+      isGear,
       isAttack: skillType === "attack",
       isSpell: skillType === "spell",
       isUtility: skillType === "utility",
       isFeature: skillType === "feature",
+      bonuses: isGear ? (item.system.bonuses ?? []).map((b, index) => ({ index, ...b })) : [],
       editing: { description: this.editingFields.has("description") },
       rendered: { description: await enrich(item.system.description, { relativeTo: item }) }
     });
+  }
+
+  /** Append a blank equipped-bonus row (defaults to +0 Strength). */
+  static async _onAddBonus() {
+    const bonuses = [...(this.document.system.bonuses ?? []).map(b => ({ ...b })),
+      { type: "attribute", attribute: "str", skill: "", value: 0 }];
+    return this.document.update({ "system.bonuses": bonuses });
+  }
+
+  /** Remove the equipped-bonus row at the clicked index. */
+  static async _onRemoveBonus(event, target) {
+    const index = Number(target.closest("[data-index]").dataset.index);
+    const bonuses = (this.document.system.bonuses ?? []).filter((_, i) => i !== index);
+    return this.document.update({ "system.bonuses": bonuses });
   }
 }

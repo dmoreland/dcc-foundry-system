@@ -62,10 +62,14 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
   prepareDerivedData() {
     const a = this.attributes;
 
+    // Bonuses granted by currently-equipped gear, keyed for Attributes and Skills. Stashed on
+    // the model so the actor's skillModifier / getRollData can read the Skill side too.
+    this.equipBonuses = this._collectEquipmentBonuses();
+
     // Effective attribute values fold in any flat bonus from race, class or elixirs (the
-    // "Enhanced" score); the modifier is what actually gets added to rolls.
-    for (const attr of Object.values(a)) {
-      attr.total = attr.value + attr.bonus;
+    // "Enhanced" score) plus equipped-gear bonuses; the modifier is what gets added to rolls.
+    for (const [key, attr] of Object.entries(a)) {
+      attr.total = attr.value + attr.bonus + (this.equipBonuses.attributes[key] ?? 0);
       attr.mod = CRAWLER.scoreToMod(attr.total);
     }
 
@@ -85,6 +89,30 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
     this.damageResistance.value = armour + this.damageResistance.bonus;
 
     this.mana.value = Math.min(this.mana.value, this.mana.max);
+  }
+
+  /**
+   * Sum the bonuses from every equipped gear item into `{ attributes: {str: n, …},
+   * skills: {<slug>: n, …} }`. Skill keys are slugified to match the actor's `@skills.<slug>`
+   * roll data and skillModifier lookup.
+   */
+  _collectEquipmentBonuses() {
+    const attributes = {};
+    const skills = {};
+    for (const item of this.parent?.items ?? []) {
+      if (item.type !== "gear" || !item.system.equipped) continue;
+      for (const b of item.system.bonuses ?? []) {
+        const value = Number(b.value) || 0;
+        if (!value) continue;
+        if (b.type === "attribute" && b.attribute) {
+          attributes[b.attribute] = (attributes[b.attribute] ?? 0) + value;
+        } else if (b.type === "skill" && b.skill) {
+          const slug = b.skill.slugify({ replacement: "_", strict: true });
+          skills[slug] = (skills[slug] ?? 0) + value;
+        }
+      }
+    }
+    return { attributes, skills };
   }
 
   getRollData() {
@@ -265,6 +293,16 @@ export class GearData extends foundry.abstract.TypeDataModel {
       range: new fields.StringField({ initial: "" }),
       blast: num(0, { min: 0 }),
       throwable: new fields.BooleanField({ initial: false }),
+      // How many of the wielder's two hands this weapon occupies when equipped (weapons only).
+      hands: num(1, { min: 1, max: 2 }),
+      // Bonuses granted to the wielder *while equipped* — each boosts a core Attribute (by key)
+      // or a Skill (by name). Folded in by CrawlerData.prepareDerivedData / skillModifier.
+      bonuses: new fields.ArrayField(new fields.SchemaField({
+        type: new fields.StringField({ initial: "attribute", choices: CRAWLER.bonusTargets }),
+        attribute: new fields.StringField({ initial: "str", choices: CRAWLER.attributes }),
+        skill: new fields.StringField({ initial: "" }),
+        value: num(0)
+      }), { initial: [] }),
       armour: num(0),
       quantity: num(1, { min: 0 }),
       equipped: new fields.BooleanField({ initial: false }),

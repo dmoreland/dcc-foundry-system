@@ -34,6 +34,21 @@ CRAWLER.gearKinds = {
   misc: "Misc"
 };
 
+/** How many hands a weapon takes to wield. A Crawler has two hands total. */
+CRAWLER.weaponHands = {
+  1: "One-handed",
+  2: "Two-handed"
+};
+
+/** Total hands a Crawler has for wielding weapons. */
+CRAWLER.maxHands = 2;
+
+/** What an equipped item's bonus can boost: a core Attribute, or a named Skill. */
+CRAWLER.bonusTargets = {
+  attribute: "Attribute",
+  skill: "Skill"
+};
+
 /** Mob descriptor (flavour only, per the book). Free text is allowed; these seed a datalist. */
 CRAWLER.mobTypes = {
   beastly: "Beastly",

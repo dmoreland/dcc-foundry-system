@@ -12,20 +12,28 @@ export class CrawlerActor extends Actor {
     Object.assign(data, this.system.getRollData?.() ?? {});
     if (this.type === "crawler") {
       data.skills = {};
+      const skillBonuses = this.system.equipBonuses?.skills ?? {};
       for (const item of this.items) {
         if (item.type !== "skill") continue;
         const slug = item.name.slugify({ replacement: "_", strict: true });
-        data.skills[slug] = item.system.rank + item.system.floorBonus;
+        data.skills[slug] = item.system.rank + item.system.floorBonus + (skillBonuses[slug] ?? 0);
       }
     }
     return data;
   }
 
-  /** Total modifier for a skill item: attribute mod + rank + floor bonus + injury penalty. */
+  /** Bonus to a named Skill's checks from currently-equipped gear (see GearData.bonuses). */
+  skillGearBonus(skillName) {
+    const slug = skillName?.slugify?.({ replacement: "_", strict: true }) ?? skillName;
+    return this.system.equipBonuses?.skills?.[slug] ?? 0;
+  }
+
+  /** Total modifier for a skill item: attribute mod + rank + floor bonus + gear bonus + injury. */
   skillModifier(skill) {
     const attr = this.system.attributes?.[skill.system.attribute];
     const injuryPenalty = this.system.injuryPenalty ?? 0;
-    return (attr?.mod ?? 0) + skill.system.rank + skill.system.floorBonus + injuryPenalty;
+    return (attr?.mod ?? 0) + skill.system.rank + skill.system.floorBonus
+      + this.skillGearBonus(skill.name) + injuryPenalty;
   }
 
   async rollAttribute(key, { dc = null, advantage = false, disadvantage = false } = {}) {
@@ -75,10 +83,13 @@ export class CrawlerActor extends Actor {
     const attrMod = (attrKey && attrKey !== "none") ? (this.system.attributes?.[attrKey]?.mod ?? 0) : 0;
     const rank = skill.system.rank + skill.system.floorBonus;
     const injuryPenalty = this.system.injuryPenalty ?? 0;
+    // Equipped gear can boost this Skill's checks (not its Rank, so it doesn't inflate the Rank
+    // damage die). Attribute bonuses already ride in via attrMod.
+    const gearBonus = this.skillGearBonus(skill.name);
     // Untrained Skill use (Rank 0) rolls with Disadvantage by default.
     let forceDisadvantage = skill.system.rank === 0;
 
-    let mod = attrMod + rank + injuryPenalty;
+    let mod = attrMod + rank + gearBonus + injuryPenalty;
     let extraDamage = "";
     const boost = boostId ? this.items.get(boostId) : null;
     if (boost) {
@@ -453,17 +464,40 @@ export class CrawlerActor extends Actor {
     }]);
   }
 
+  /** Hands currently occupied by equipped weapons, optionally ignoring one item (the one being
+   *  toggled). A Crawler has CRAWLER.maxHands (2) hands total. */
+  handsInUse(exceptId = null) {
+    return this.items
+      .filter(i => i.type === "gear" && i.system.kind === "weapon" && i.system.equipped && i.id !== exceptId)
+      .reduce((n, i) => n + Math.clamp(i.system.hands ?? 1, 1, 2), 0);
+  }
+
   /**
-   * Toggle a gear item's equipped state, enforcing one-item-per-slot exclusivity
-   * (equipping into an occupied head/torso/arms/hands/legs/feet slot bumps the current
-   * occupant) and a 10-item cap on the accessory slot. Items with slot "none" just toggle.
+   * Toggle a gear item's equipped state. Weapons are wielded in one or two hands and share a
+   * two-hand budget (equipping is refused when there aren't enough free hands). Worn gear
+   * enforces one-item-per-slot exclusivity (equipping into an occupied head/torso/arms/hands/
+   * legs/feet slot bumps the current occupant) and a 10-item cap on the accessory slot. Items
+   * with slot "none" just toggle.
    */
   async equipGear(itemId) {
     const item = this.items.get(itemId);
     if (!item) return;
-    const slot = item.system.slot;
     const equipping = !item.system.equipped;
 
+    // Weapons don't use worn slots — they consume hands from the shared two-hand budget.
+    if (item.type === "gear" && item.system.kind === "weapon") {
+      if (equipping) {
+        const need = Math.clamp(item.system.hands ?? 1, 1, 2);
+        const free = CRAWLER.maxHands - this.handsInUse(itemId);
+        if (need > free) {
+          const noun = need === 2 ? "two hands" : "a hand";
+          return ui.notifications.warn(`Not enough free hands to wield ${item.name} (needs ${noun}, ${free} free). Unequip another weapon first.`);
+        }
+      }
+      return item.update({ "system.equipped": equipping });
+    }
+
+    const slot = item.system.slot;
     if (equipping && slot && slot !== "none") {
       const occupants = this.items.filter(i =>
         i.type === "gear" && i.id !== itemId && i.system.slot === slot && i.system.equipped);
