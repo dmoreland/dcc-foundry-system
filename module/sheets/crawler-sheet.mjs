@@ -31,6 +31,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       pinItem: CrawlerSheet._onPinItem,
       unpinItem: CrawlerSheet._onUnpinItem,
       rollHotlist: CrawlerSheet._onRollHotlist,
+      advanceSkills: CrawlerSheet._onAdvanceSkills,
       createEffect: CrawlerSheet._onCreateEffect,
       editEffect: CrawlerSheet._onEditEffect,
       toggleEffect: CrawlerSheet._onToggleEffect,
@@ -96,6 +97,11 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     const spellSkills = skills.filter(s => s.skillType === "spell");
     const utilitySkills = skills.filter(s => s.skillType === "utility");
     const features = skills.filter(s => s.skillType === "feature");
+
+    // Skills whose advancement box is ticked, split by Rank bracket for the two advance buttons.
+    const advanceable = skills.filter(s => s.used && s.skillType !== "feature");
+    const advanceUnder5 = advanceable.filter(s => s.rank < 5).length;
+    const advanceOver5 = advanceable.filter(s => s.rank >= 5).length;
 
     // A Utility Skill can boost an Attack/Spell if its scope matches by melee/ranged or by name.
     const boostsFor = skill => utilitySkills.filter(u => {
@@ -188,6 +194,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       accessories,
       handsInUse,
       maxHands: CRAWLER.maxHands,
+      advanceUnder5,
+      advanceOver5,
       hotlist,
       effects,
       hpSlots: Array.from({ length: 10 }, (_, i) => ({
@@ -285,6 +293,10 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   static async _onRollHotlist(event, target) {
     return this.document.rollHotlistEntry(target.closest("[data-item-id]").dataset.itemId);
+  }
+
+  static async _onAdvanceSkills(event, target) {
+    return this.document.advanceSkills(target.dataset.mode);
   }
 
   static async _onCreateItem(event, target) {

@@ -384,6 +384,21 @@ export async function applyManaToSelected(amount, full = false) {
   });
 }
 
+/** Summarise a Skill advancement pass (see CrawlerActor#advanceSkills): which Skills gained a
+ *  Rank, or a note that nothing was eligible. No roll — a flat +1 per used Skill in the bracket. */
+export async function postAdvancementCard({ actor, hours, results = [] }) {
+  const rows = results.length
+    ? results.map(r => `<li><strong>${r.name}</strong> Rank ${r.from} → ${r.to}</li>`).join("")
+    : "<li>No used Skills in this bracket. Use Skills first (their advancement box ticks), then advance.</li>";
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">Advancement — ${hours}h play</span>
+      <ul class="crawl-apply-list">${rows}</ul></div>`
+  });
+}
+
 const REST_LABELS = {
   short: "Short Rest (2 hours)",
   long: "Long Rest (8 hours)",

@@ -106,6 +106,16 @@
   {{/if}}
 
   {{#if (crEq tab "skills")}}
+  <div class="crawl-advance-bar">
+    <span class="crawl-muted">Advancement</span>
+    <button type="button" data-action="advanceSkills" data-mode="under5" title="After 2 hours of play: advance every used Skill below Rank 5 (+1 Rank), then clear its box" {{#unless editable}}disabled{{/unless}}>
+      2h Play — advance &lt;5 <span class="crawl-count">{{advanceUnder5}}</span>
+    </button>
+    <button type="button" data-action="advanceSkills" data-mode="over5" title="After 5 hours of play: advance every used Skill at Rank 5 or above (+1 Rank), then clear its box" {{#unless editable}}disabled{{/unless}}>
+      5h Play — advance 5+ <span class="crawl-count">{{advanceOver5}}</span>
+    </button>
+  </div>
+
   <h3 class="crawl-subhead">Attacks</h3>
   <ol class="crawl-list">
     {{#each attackSkills}}

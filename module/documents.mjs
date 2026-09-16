@@ -543,6 +543,36 @@ export class CrawlerActor extends Actor {
       return this.rollAttackViaGear(itemId);
     }
   }
+
+  /**
+   * Advance every Skill that has been used (its advancement checkbox is ticked) within one Rank
+   * bracket, then clear those `used` flags. `mode` "under5" covers the 2-hour play button (used
+   * Skills below Rank 5); "over5" covers the 5-hour play button (used Skills at Rank 5+). Each
+   * qualifying Skill gains +1 Rank (capped at 20). Features/Passive skills never advance this
+   * way. Posts a summary card.
+   */
+  async advanceSkills(mode) {
+    const overFive = mode === "over5";
+    const hours = overFive ? 5 : 2;
+    const eligible = this.items.filter(i => i.type === "skill"
+      && i.system.used
+      && i.system.skillType !== "feature"
+      && (overFive ? i.system.rank >= 5 : i.system.rank < 5));
+
+    // Report only Skills that actually gained a Rank (a maxed Skill still clears its flag).
+    const results = eligible
+      .filter(s => s.system.rank < 20)
+      .map(s => ({ name: s.name, from: s.system.rank, to: s.system.rank + 1 }));
+
+    if (eligible.length) {
+      await this.updateEmbeddedDocuments("Item", eligible.map(s => ({
+        _id: s.id,
+        "system.rank": Math.min(20, s.system.rank + 1),
+        "system.used": false
+      })));
+    }
+    return Dice.postAdvancementCard({ actor: this, hours, results });
+  }
 }
 
 export class CrawlerItem extends Item {

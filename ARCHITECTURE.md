@@ -101,8 +101,13 @@ are excluded from the worn-slot layout.
 **Advancement use tracking.** Each Skill has a `used` boolean. `CrawlerActor.rollSkill` ticks it
 on every roll (pass or fail, at the commit point past the cooldown/Mana guards; Features/Passive
 skills don't roll and aren't tracked). The skill rows surface it as a checkbox the player can
-also clear by hand. It's the input for a future advancement-roll change — nothing consumes it
-yet.
+also clear by hand.
+
+Two buttons on the Skills tab spend it: `CrawlerActor.advanceSkills("under5")` (the **2h play**
+button) advances every used Skill below Rank 5 by +1 and clears its box; `advanceSkills("over5")`
+(the **5h play** button) does the same for used Skills at Rank 5+. Each button carries a live
+count of its eligible Skills and posts an advancement summary card. Advancement is a flat +1 per
+used Skill in the bracket (no dice), capped at Rank 20.
 
 `MobData.prepareDerivedData()` mirrors the book's Mob Stat Block (pp. 270–272): stat scores
 fold to mods, then `evade.value = 10 + dex.mod + floor`, `surprise.value = 10 + int.mod +
