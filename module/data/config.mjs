@@ -34,6 +34,24 @@ CRAWLER.gearKinds = {
   misc: "Misc"
 };
 
+/** How many hands a weapon takes to wield. A Crawler has two hands total. */
+CRAWLER.weaponHands = {
+  1: "One-handed",
+  2: "Two-handed"
+};
+
+/** Total hands a Crawler has for wielding weapons. */
+CRAWLER.maxHands = 2;
+
+/** What a bonus (an equipped item's, or a Skill's passive grant) can boost: a core Attribute,
+ *  a named Skill, or the Evade/Surprise stat. */
+CRAWLER.bonusTargets = {
+  attribute: "Attribute",
+  skill: "Skill",
+  evade: "Evade",
+  surprise: "Surprise"
+};
+
 /** Mob descriptor (flavour only, per the book). Free text is allowed; these seed a datalist. */
 CRAWLER.mobTypes = {
   beastly: "Beastly",
@@ -92,12 +110,15 @@ CRAWLER.attackTypes = {
   ranged: "Ranged"
 };
 
-/** What an Attack/Spell a Utility Skill's buff can apply to. */
+/** What a Utility Skill's buff can apply to: an Attack/Spell roll, or a reactive Evade/Surprise
+ *  Check (the same Aiming pattern, spent on your defenses instead of your offense). */
 CRAWLER.buffScopes = {
   none: "None",
   melee: "Any Melee Attack",
   ranged: "Any Ranged Attack",
-  specific: "A Specific Skill"
+  specific: "A Specific Skill",
+  evade: "Evade Check",
+  surprise: "Surprise Check"
 };
 
 CRAWLER.sizes = {

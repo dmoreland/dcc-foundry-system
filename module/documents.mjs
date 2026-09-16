@@ -12,20 +12,28 @@ export class CrawlerActor extends Actor {
     Object.assign(data, this.system.getRollData?.() ?? {});
     if (this.type === "crawler") {
       data.skills = {};
+      const skillBonuses = this.system.equipBonuses?.skills ?? {};
       for (const item of this.items) {
         if (item.type !== "skill") continue;
         const slug = item.name.slugify({ replacement: "_", strict: true });
-        data.skills[slug] = item.system.rank + item.system.floorBonus;
+        data.skills[slug] = item.system.rank + item.system.floorBonus + (skillBonuses[slug] ?? 0);
       }
     }
     return data;
   }
 
-  /** Total modifier for a skill item: attribute mod + rank + floor bonus + injury penalty. */
+  /** Bonus to a named Skill's checks from currently-equipped gear (see GearData.bonuses). */
+  skillGearBonus(skillName) {
+    const slug = skillName?.slugify?.({ replacement: "_", strict: true }) ?? skillName;
+    return this.system.equipBonuses?.skills?.[slug] ?? 0;
+  }
+
+  /** Total modifier for a skill item: attribute mod + rank + floor bonus + gear bonus + injury. */
   skillModifier(skill) {
     const attr = this.system.attributes?.[skill.system.attribute];
     const injuryPenalty = this.system.injuryPenalty ?? 0;
-    return (attr?.mod ?? 0) + skill.system.rank + skill.system.floorBonus + injuryPenalty;
+    return (attr?.mod ?? 0) + skill.system.rank + skill.system.floorBonus
+      + this.skillGearBonus(skill.name) + injuryPenalty;
   }
 
   async rollAttribute(key, { dc = null, advantage = false, disadvantage = false } = {}) {
@@ -53,9 +61,10 @@ export class CrawlerActor extends Actor {
    * description instead of rolling; Spells check/deduct Mana; anything with checkType "evade"
    * (a weapon Attack Skill or an attack Spell) resolves through the reactive-Evade attack flow;
    * everything else is a plain Opposed/Unopposed check. `boostId` is another Utility Skill (the
-   * Aiming pattern) manually selected to buff this roll.
+   * Aiming pattern) manually selected to buff this roll. `weapon` is the Gear item being wielded
+   * (see rollAttackViaGear): the Skill supplies to-hit and Rank dice, the weapon the damage die.
    */
-  async rollSkill(skillId, { advantage = false, disadvantage = false, boostId = null } = {}) {
+  async rollSkill(skillId, { advantage = false, disadvantage = false, boostId = null, weapon = null } = {}) {
     const skill = this.items.get(skillId);
     if (!skill) return;
 
@@ -74,10 +83,13 @@ export class CrawlerActor extends Actor {
     const attrMod = (attrKey && attrKey !== "none") ? (this.system.attributes?.[attrKey]?.mod ?? 0) : 0;
     const rank = skill.system.rank + skill.system.floorBonus;
     const injuryPenalty = this.system.injuryPenalty ?? 0;
+    // Equipped gear can boost this Skill's checks (not its Rank, so it doesn't inflate the Rank
+    // damage die). Attribute bonuses already ride in via attrMod.
+    const gearBonus = this.skillGearBonus(skill.name);
     // Untrained Skill use (Rank 0) rolls with Disadvantage by default.
     let forceDisadvantage = skill.system.rank === 0;
 
-    let mod = attrMod + rank + injuryPenalty;
+    let mod = attrMod + rank + gearBonus + injuryPenalty;
     let extraDamage = "";
     const boost = boostId ? this.items.get(boostId) : null;
     if (boost) {
@@ -88,6 +100,8 @@ export class CrawlerActor extends Actor {
 
     if (manaCost) await this.update({ "system.mana.value": mana.value - manaCost });
     await this.useCooldown(skill);
+    // Mark the Skill as practised for advancement — ticked on every use, pass or fail.
+    if (!skill.system.used) await skill.update({ "system.used": true });
 
     // Healing never rolls — it's a flat number of Health Bar slots, no attribute or DR involved.
     if (skill.system.healing) {
@@ -113,11 +127,18 @@ export class CrawlerActor extends Actor {
 
     const isAttack = skill.system.checkType === "evade";
     const attrLabel = CRAWLER.attributes[attrKey];
+    // A wielded weapon names the attack (an Axe swung via Heavy Weapons reads "Attack — Axe").
+    const attackNoun = skill.system.skillType === "spell" ? "Cast" : "Attack";
     const label = isAttack
-      ? `${skill.system.skillType === "spell" ? "Cast" : "Attack"} — ${skill.name}`
+      ? `${attackNoun} — ${weapon?.name ?? skill.name}`
       : (attrLabel ? `${skill.name} (${attrLabel})` : skill.name);
 
     if (isAttack) {
+      // A throwable/consumable weapon spends one on each committed attack (past the cooldown/mana
+      // guards above). Quantity is pre-checked in rollAttackViaGear.
+      if (weapon?.type === "gear" && weapon.system.kind === "consumable") {
+        await weapon.update({ "system.quantity": Math.max(0, weapon.system.quantity - 1) });
+      }
       const target = game.user.targets.first();
       const size = Dice.targetSizeModifier(this, target);
       return Dice.resolveAttack({
@@ -127,6 +148,7 @@ export class CrawlerActor extends Actor {
         advantage: advantage || size.advantage,
         disadvantage: disadvantage || forceDisadvantage || size.disadvantage,
         itemId: skill.id,
+        weaponId: weapon?.id ?? null,
         rank,
         bonusDamage: size.bonusDamage,
         extraDamage,
@@ -147,14 +169,18 @@ export class CrawlerActor extends Actor {
     });
   }
 
-  /** Attack via a weapon Gear item's linked Skill (looked up by name) — same convenience button
-   *  the Gear tab has always had, just delegating to the merged Skill roll now. */
+  /** Attack with a weapon Gear item: resolve its linked Skill (by name) for the to-hit roll and
+   *  Rank dice, and hand the weapon through so its own damage die drives the damage card. This is
+   *  the primary attack path — a Skill backs many weapons, each with its own damage. */
   async rollAttackViaGear(itemId, options = {}) {
     const gearItem = this.items.get(itemId);
     if (!gearItem) return;
     const skill = this.items.find(i => i.type === "skill" && i.name === gearItem.system.skill);
     if (!skill) return ui.notifications.warn(`No Skill named "${gearItem.system.skill}" found for ${gearItem.name}.`);
-    return this.rollSkill(skill.id, options);
+    if (gearItem.system.kind === "consumable" && gearItem.system.quantity <= 0) {
+      return ui.notifications.warn(`No ${gearItem.name} left.`);
+    }
+    return this.rollSkill(skill.id, { ...options, weapon: gearItem });
   }
 
   /** Use a consumable: decrements quantity, then heals a flat number of slots if it has the
@@ -214,11 +240,36 @@ export class CrawlerActor extends Actor {
 
   /** Roll Evade on demand, outside the reactive attack flow — e.g. clicking it on your own
    *  sheet to check your odds. Posts a plain check card with no target/hit resolution; the
-   *  real defensive roll happens via rollEvade(flags) below, triggered from a pending attack. */
-  async rollEvadeCheck({ advantage = false, disadvantage = false } = {}) {
+   *  real defensive roll happens via rollEvade(flags) below, triggered from a pending attack.
+   *  `boostId` is a Utility Skill (buffScope "evade") manually selected to buff this roll. */
+  async rollEvadeCheck({ advantage = false, disadvantage = false, boostId = null } = {}) {
     const dexMod = this.system.attributes?.dex?.mod ?? 0;
-    const mod = dexMod + (this.system.evade?.bonus ?? 0) + (this.system.injuryPenalty ?? 0);
-    return Dice.rollCheck({ actor: this, label: "Evade", mod, advantage, disadvantage });
+    let mod = dexMod + (this.system.evade?.bonus ?? 0) + (this.system.equipBonuses?.evade ?? 0)
+      + (this.system.injuryPenalty ?? 0);
+    let forceDisadvantage = false;
+    const boost = boostId ? this.items.get(boostId) : null;
+    if (boost) {
+      if (boost.system.buffToHitBonus) mod += boost.system.rank + boost.system.floorBonus;
+      if (boost.system.buffRequiresDisadvantage) forceDisadvantage = true;
+    }
+    return Dice.rollCheck({ actor: this, label: "Evade", mod, advantage, disadvantage: disadvantage || forceDisadvantage });
+  }
+
+  /** Roll Surprise on demand — the counterpart to rollEvadeCheck. Surprise's `value` is the
+   *  passive number others roll against to catch you off guard; this is the active
+   *  1d20 + INT mod check for when you need to actively resist/notice an ambush.
+   *  `boostId` is a Utility Skill (buffScope "surprise") manually selected to buff this roll. */
+  async rollSurpriseCheck({ advantage = false, disadvantage = false, boostId = null } = {}) {
+    const intMod = this.system.attributes?.int?.mod ?? 0;
+    let mod = intMod + (this.system.surprise?.bonus ?? 0) + (this.system.equipBonuses?.surprise ?? 0)
+      + (this.system.injuryPenalty ?? 0);
+    let forceDisadvantage = false;
+    const boost = boostId ? this.items.get(boostId) : null;
+    if (boost) {
+      if (boost.system.buffToHitBonus) mod += boost.system.rank + boost.system.floorBonus;
+      if (boost.system.buffRequiresDisadvantage) forceDisadvantage = true;
+    }
+    return Dice.rollCheck({ actor: this, label: "Surprise", mod, advantage, disadvantage: disadvantage || forceDisadvantage });
   }
 
   /**
@@ -440,17 +491,40 @@ export class CrawlerActor extends Actor {
     }]);
   }
 
+  /** Hands currently occupied by equipped weapons, optionally ignoring one item (the one being
+   *  toggled). A Crawler has CRAWLER.maxHands (2) hands total. */
+  handsInUse(exceptId = null) {
+    return this.items
+      .filter(i => i.type === "gear" && i.system.kind === "weapon" && i.system.equipped && i.id !== exceptId)
+      .reduce((n, i) => n + Math.clamp(i.system.hands ?? 1, 1, 2), 0);
+  }
+
   /**
-   * Toggle a gear item's equipped state, enforcing one-item-per-slot exclusivity
-   * (equipping into an occupied head/torso/arms/hands/legs/feet slot bumps the current
-   * occupant) and a 10-item cap on the accessory slot. Items with slot "none" just toggle.
+   * Toggle a gear item's equipped state. Weapons are wielded in one or two hands and share a
+   * two-hand budget (equipping is refused when there aren't enough free hands). Worn gear
+   * enforces one-item-per-slot exclusivity (equipping into an occupied head/torso/arms/hands/
+   * legs/feet slot bumps the current occupant) and a 10-item cap on the accessory slot. Items
+   * with slot "none" just toggle.
    */
   async equipGear(itemId) {
     const item = this.items.get(itemId);
     if (!item) return;
-    const slot = item.system.slot;
     const equipping = !item.system.equipped;
 
+    // Weapons don't use worn slots — they consume hands from the shared two-hand budget.
+    if (item.type === "gear" && item.system.kind === "weapon") {
+      if (equipping) {
+        const need = Math.clamp(item.system.hands ?? 1, 1, 2);
+        const free = CRAWLER.maxHands - this.handsInUse(itemId);
+        if (need > free) {
+          const noun = need === 2 ? "two hands" : "a hand";
+          return ui.notifications.warn(`Not enough free hands to wield ${item.name} (needs ${noun}, ${free} free). Unequip another weapon first.`);
+        }
+      }
+      return item.update({ "system.equipped": equipping });
+    }
+
+    const slot = item.system.slot;
     if (equipping && slot && slot !== "none") {
       const occupants = this.items.filter(i =>
         i.type === "gear" && i.id !== itemId && i.system.slot === slot && i.system.equipped);
@@ -488,7 +562,41 @@ export class CrawlerActor extends Actor {
     const item = this.items.get(itemId);
     if (!item) return;
     if (item.type === "skill") return this.rollSkill(itemId);
-    if (item.type === "gear") return this.rollAttackViaGear(itemId);
+    if (item.type === "gear") {
+      // A plain consumable (potion) uses itself; a weapon or thrown weapon makes an attack.
+      if (item.system.kind === "consumable" && !item.system.throwable) return this.useItem(itemId);
+      return this.rollAttackViaGear(itemId);
+    }
+  }
+
+  /**
+   * Advance every Skill that has been used (its advancement checkbox is ticked) within one Rank
+   * bracket, then clear those `used` flags. `mode` "under5" covers the 2-hour play button (used
+   * Skills below Rank 5); "over5" covers the 5-hour play button (used Skills at Rank 5+). Each
+   * qualifying Skill gains +1 Rank (capped at 20). Features/Passive skills never advance this
+   * way. Posts a summary card.
+   */
+  async advanceSkills(mode) {
+    const overFive = mode === "over5";
+    const hours = overFive ? 5 : 2;
+    const eligible = this.items.filter(i => i.type === "skill"
+      && i.system.used
+      && i.system.skillType !== "feature"
+      && (overFive ? i.system.rank >= 5 : i.system.rank < 5));
+
+    // Report only Skills that actually gained a Rank (a maxed Skill still clears its flag).
+    const results = eligible
+      .filter(s => s.system.rank < 20)
+      .map(s => ({ name: s.name, from: s.system.rank, to: s.system.rank + 1 }));
+
+    if (eligible.length) {
+      await this.updateEmbeddedDocuments("Item", eligible.map(s => ({
+        _id: s.id,
+        "system.rank": Math.min(20, s.system.rank + 1),
+        "system.used": false
+      })));
+    }
+    return Dice.postAdvancementCard({ actor: this, hours, results });
   }
 }
 

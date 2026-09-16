@@ -38,6 +38,10 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
         bonus: num(0),
         value: num(11)
       }),
+      surprise: new fields.SchemaField({
+        bonus: num(0),
+        value: num(11)
+      }),
       damageResistance: new fields.SchemaField({
         bonus: num(0),
         value: num(0)
@@ -62,10 +66,16 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
   prepareDerivedData() {
     const a = this.attributes;
 
+    // Bonuses granted by currently-equipped gear and by owned Skills (a Feature/racial trait
+    // applies passively just by being owned — no equip toggle). Keyed for Attributes, Skills,
+    // Evade and Surprise. Stashed on the model so the actor's skillModifier / getRollData can
+    // read the Skill side too.
+    this.equipBonuses = this._collectPassiveBonuses();
+
     // Effective attribute values fold in any flat bonus from race, class or elixirs (the
-    // "Enhanced" score); the modifier is what actually gets added to rolls.
-    for (const attr of Object.values(a)) {
-      attr.total = attr.value + attr.bonus;
+    // "Enhanced" score) plus equipped-gear bonuses; the modifier is what gets added to rolls.
+    for (const [key, attr] of Object.entries(a)) {
+      attr.total = attr.value + attr.bonus + (this.equipBonuses.attributes[key] ?? 0);
       attr.mod = CRAWLER.scoreToMod(attr.total);
     }
 
@@ -81,16 +91,49 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
       if (item.type !== "gear") continue;
       if (item.system.equipped) armour += item.system.armour ?? 0;
     }
-    this.evade.value = 10 + a.dex.mod + this.floor + this.evade.bonus;
+    this.evade.value = 10 + a.dex.mod + this.floor + this.evade.bonus + this.equipBonuses.evade;
+    this.surprise.value = 10 + a.int.mod + this.floor + this.surprise.bonus + this.equipBonuses.surprise;
     this.damageResistance.value = armour + this.damageResistance.bonus;
 
     this.mana.value = Math.min(this.mana.value, this.mana.max);
   }
 
+  /**
+   * Sum the bonuses from every equipped gear item and every owned Skill (a Skill's bonuses
+   * apply just by being owned — Features/racial traits have no equip toggle) into
+   * `{ attributes: {str: n, …}, skills: {<slug>: n, …}, evade: n, surprise: n }`. Skill keys
+   * are slugified to match the actor's `@skills.<slug>` roll data and skillModifier lookup.
+   */
+  _collectPassiveBonuses() {
+    const attributes = {};
+    const skills = {};
+    let evade = 0;
+    let surprise = 0;
+    for (const item of this.parent?.items ?? []) {
+      if (item.type === "gear" && !item.system.equipped) continue;
+      if (item.type !== "gear" && item.type !== "skill") continue;
+      for (const b of item.system.bonuses ?? []) {
+        const value = Number(b.value) || 0;
+        if (!value) continue;
+        if (b.type === "attribute" && b.attribute) {
+          attributes[b.attribute] = (attributes[b.attribute] ?? 0) + value;
+        } else if (b.type === "skill" && b.skill) {
+          const slug = b.skill.slugify({ replacement: "_", strict: true });
+          skills[slug] = (skills[slug] ?? 0) + value;
+        } else if (b.type === "evade") {
+          evade += value;
+        } else if (b.type === "surprise") {
+          surprise += value;
+        }
+      }
+    }
+    return { attributes, skills, evade, surprise };
+  }
+
   getRollData() {
     const data = {
       level: this.level, floor: this.floor,
-      evade: this.evade.value, damageResistance: this.damageResistance.value
+      evade: this.evade.value, surprise: this.surprise.value, damageResistance: this.damageResistance.value
     };
     for (const [key, attr] of Object.entries(this.attributes)) {
       data[key] = attr.mod;
@@ -192,11 +235,16 @@ export class MobData extends foundry.abstract.TypeDataModel {
 /* -------------------------------------------- */
 
 /**
- * Skill covers everything skill-shaped: Attack Skills (weapons), Spells, Utility Skills, and
- * static Features (racial traits, class abilities, curses, status effects). `skillType` drives
- * which fields are meaningful; the sheet/item-sheet gate visibility on it. This replaces the
- * old Skill/Ability split — a weapon or spell no longer just links to a Skill by name for its
- * Rank, it *is* the Skill.
+ * Skill covers everything skill-shaped: Attack Skills (weapon proficiencies), Spells, Utility
+ * Skills, and static Features (racial traits, class abilities, curses, status effects).
+ * `skillType` drives which fields are meaningful; the sheet/item-sheet gate visibility on it.
+ *
+ * For an **Attack** Skill the Skill owns the to-hit (attribute + Rank + floor bonus + check
+ * type) and the Rank bonus damage dice — the main damage die lives on the *weapon* (GearData)
+ * that links to this Skill. `damage` here is the Skill's **innate/fallback** damage, used only
+ * when the Skill is rolled with no weapon (e.g. unarmed Brawl) — a category Skill like Heavy
+ * Weapons or Throwing normally leaves it blank and lets each weapon supply the die.
+ * Spells, by contrast, are their own "weapon" and keep their damage on the Skill.
  */
 export class SkillData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -207,6 +255,9 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       damageAttribute: new fields.StringField({ initial: "same", choices: CRAWLER.damageAttributeChoices }),
       rank: num(0, { min: 0, max: 20 }),
       floorBonus: num(0),
+      // Ticked automatically whenever this Skill is rolled (pass or fail); cleared by the player.
+      // Marks the Skill as practised since the last advancement — feeds advancement rolls.
+      used: new fields.BooleanField({ initial: false }),
       checkType: new fields.StringField({ initial: "unopposed", choices: CRAWLER.skillCheckTypes }),
       attackType: new fields.StringField({ initial: "melee", choices: CRAWLER.attackTypes }),
       damage: new fields.StringField({ initial: "" }),
@@ -229,19 +280,56 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       manaRestore: new fields.BooleanField({ initial: false }),
       manaRestoreAmount: num(0, { min: 0 }),
       manaRestoreFull: new fields.BooleanField({ initial: false }),
+      // Passive bonuses this Skill grants just by being owned — no equip toggle, unlike Gear.
+      // Typically used on a Feature (racial trait/class ability) to add e.g. +2 Evade, but any
+      // Skill can carry one. Folded in by CrawlerData.prepareDerivedData alongside gear bonuses.
+      bonuses: new fields.ArrayField(new fields.SchemaField({
+        type: new fields.StringField({ initial: "attribute", choices: CRAWLER.bonusTargets }),
+        attribute: new fields.StringField({ initial: "str", choices: CRAWLER.attributes }),
+        skill: new fields.StringField({ initial: "" }),
+        value: num(0)
+      }), { initial: [] }),
       description: new fields.HTMLField({ initial: "" })
     };
   }
 }
 
-/** Physical inventory only — armor, consumables, accessories, and the weapon prop itself
- * (which links to its Attack Skill by name for the roll; see SkillData). */
+/**
+ * Physical inventory: armour, consumables, accessories, and — the important case — the
+ * **weapon itself**, which now owns its own base damage.
+ *
+ * A weapon links to an Attack Skill by name (`skill`). The Skill supplies the to-hit roll
+ * (attribute + Rank), the Rank bonus damage dice, and any features/buffs; the *weapon* supplies
+ * the main damage die (`damage`), its type, range and blast. This is what lets one Skill back
+ * many weapons — an Axe and a Maul both use "Heavy Weapons" but roll different damage, and a
+ * Rock and a Stick of Dynamite both use "Throwing" (set `throwable`) with wildly different
+ * damage and blast. See SkillData for the other half of the split.
+ */
 export class GearData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
       kind: new fields.StringField({ initial: "weapon", choices: CRAWLER.gearKinds }),
       slot: new fields.StringField({ initial: "none", choices: CRAWLER.gearSlots }),
       skill: new fields.StringField({ initial: "" }),
+      // Weapon damage lives on the item (see class doc). `damageAttribute` "same" defers to the
+      // linked Skill's to-hit attribute; override it for e.g. a bow that hits with DEX, damages
+      // off STR. `throwable` opts a consumable into the attack flow (spends one on a hit-roll).
+      damage: new fields.StringField({ initial: "" }),
+      damageType: new fields.StringField({ initial: "", choices: CRAWLER.damageTypes, blank: true }),
+      damageAttribute: new fields.StringField({ initial: "same", choices: CRAWLER.damageAttributeChoices }),
+      range: new fields.StringField({ initial: "" }),
+      blast: num(0, { min: 0 }),
+      throwable: new fields.BooleanField({ initial: false }),
+      // How many of the wielder's two hands this weapon occupies when equipped (weapons only).
+      hands: num(1, { min: 1, max: 2 }),
+      // Bonuses granted to the wielder *while equipped* — each boosts a core Attribute (by key)
+      // or a Skill (by name). Folded in by CrawlerData.prepareDerivedData / skillModifier.
+      bonuses: new fields.ArrayField(new fields.SchemaField({
+        type: new fields.StringField({ initial: "attribute", choices: CRAWLER.bonusTargets }),
+        attribute: new fields.StringField({ initial: "str", choices: CRAWLER.attributes }),
+        skill: new fields.StringField({ initial: "" }),
+        value: num(0)
+      }), { initial: [] }),
       armour: num(0),
       quantity: num(1, { min: 0 }),
       equipped: new fields.BooleanField({ initial: false }),

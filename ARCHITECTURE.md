@@ -64,6 +64,18 @@ Actor and item data shapes are `TypeDataModel` subclasses in
 - **Actors:** `crawler` (player) and `mob`.
 - **Items:** `skill`, `gear`, `ability`.
 
+**Skill / weapon split.** For an **Attack** Skill, ownership is split: the **Skill** owns the
+to-hit (attribute + Rank + floor bonus + check type) and the Rank bonus damage dice; the
+**weapon** (`gear` linking to the Skill by name) owns the base damage die, its type, range and
+blast. This lets one Skill back many weapons — an Axe and a Maul both use "Heavy Weapons" but
+roll different damage, and a Rock and a stick of Dynamite (a consumable with `throwable` set)
+both use "Throwing". A Skill's own `damage` is an *innate/fallback* die, used only when the
+Skill is rolled with no weapon (unarmed Brawl); Spells are their own "weapon" and keep damage on
+the Skill. At damage time `Dice.rollDamage({ skill, weapon })` combines the two: base die from
+the weapon (or Skill fallback), attribute from the Skill (weapon can override), Rank die from
+the Skill. The attack flow threads both a `weaponId` and the Skill `itemId` through the chat-card
+flags (check → pending → evade → damage).
+
 **Derived data.** `CrawlerData.prepareDerivedData()` computes the sheet's live numbers. Each
 attribute folds `value + bonus → total`, then:
 
@@ -73,6 +85,29 @@ attribute folds `value + bonus → total`, then:
 
 Equipped `gear` feeds Defense, so Defense is recomputed from items each prepare pass rather
 than stored. `hp`/`mana` current values are clamped to their maxes.
+
+**Equip bonuses & handedness.** Each `gear` item carries a `bonuses` list; while the item is
+**equipped**, each entry adds to a core Attribute (by key) or a Skill (by name).
+`CrawlerData.prepareDerivedData` collects them once into `system.equipBonuses`
+(`{ attributes, skills }`): Attribute bonuses fold into `attr.total`/`attr.mod` (so they flow
+into every downstream formula), and the Skill side is read back by `CrawlerActor.skillModifier`,
+`skillGearBonus`, `getRollData` (`@skills.<slug>`), and the actual `rollSkill` modifier. The
+components stay **distinct** on the sheet — base Rank, the editable Floor bonus (kept free for
+potions/situational buffs), and a read-only Item column for the gear bonus — while the Total and
+the roll sum them. Weapons are **wielded**, not worn: a weapon's `hands` (1 or 2) is spent from a
+two-hand budget (`CRAWLER.maxHands`) enforced by `CrawlerActor.equipGear`/`handsInUse`, so they
+are excluded from the worn-slot layout.
+
+**Advancement use tracking.** Each Skill has a `used` boolean. `CrawlerActor.rollSkill` ticks it
+on every roll (pass or fail, at the commit point past the cooldown/Mana guards; Features/Passive
+skills don't roll and aren't tracked). The skill rows surface it as a checkbox the player can
+also clear by hand.
+
+Two buttons on the Skills tab spend it: `CrawlerActor.advanceSkills("under5")` (the **2h play**
+button) advances every used Skill below Rank 5 by +1 and clears its box; `advanceSkills("over5")`
+(the **5h play** button) does the same for used Skills at Rank 5+. Each button carries a live
+count of its eligible Skills and posts an advancement summary card. Advancement is a flat +1 per
+used Skill in the bracket (no dice), capped at Rank 20.
 
 `MobData.prepareDerivedData()` mirrors the book's Mob Stat Block (pp. 270–272): stat scores
 fold to mods, then `evade.value = 10 + dex.mod + floor`, `surprise.value = 10 + int.mod +

@@ -20,10 +20,12 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       showTab: CrawlerSheet._onShowTab,
       rollAttribute: CrawlerSheet._onRollAttribute,
       rollEvadeCheck: CrawlerSheet._onRollEvadeCheck,
+      rollSurpriseCheck: CrawlerSheet._onRollSurpriseCheck,
       rollSkill: CrawlerSheet._onRollSkill,
       rollAttackGear: CrawlerSheet._onRollAttackGear,
       useItem: CrawlerSheet._onUseItem,
       adjustRank: CrawlerSheet._onAdjustRank,
+      adjustQuantity: CrawlerSheet._onAdjustQuantity,
       toggleEquip: CrawlerSheet._onToggleEquip,
       createItem: CrawlerSheet._onCreateItem,
       editItem: CrawlerSheet._onEditItem,
@@ -31,6 +33,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       pinItem: CrawlerSheet._onPinItem,
       unpinItem: CrawlerSheet._onUnpinItem,
       rollHotlist: CrawlerSheet._onRollHotlist,
+      advanceSkills: CrawlerSheet._onAdvanceSkills,
       createEffect: CrawlerSheet._onCreateEffect,
       editEffect: CrawlerSheet._onEditEffect,
       toggleEffect: CrawlerSheet._onToggleEffect,
@@ -66,6 +69,10 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
           damageAttribute: s.damageAttribute === "same" ? s.attribute : s.damageAttribute,
           rank: s.rank,
           floorBonus: s.floorBonus,
+          // Bonus from currently-equipped gear, shown distinctly from the base Rank and the
+          // editable Floor bonus (which stays free for potions / situational buffs).
+          gearBonus: actor.skillGearBonus(skill.name),
+          used: s.used,
           total: actor.skillModifier(skill),
           checkType: s.checkType,
           checkTypeLabel: CRAWLER.skillCheckTypes[s.checkType] ?? s.checkType,
@@ -93,6 +100,11 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     const utilitySkills = skills.filter(s => s.skillType === "utility");
     const features = skills.filter(s => s.skillType === "feature");
 
+    // Skills whose advancement box is ticked, split by Rank bracket for the two advance buttons.
+    const advanceable = skills.filter(s => s.used && s.skillType !== "feature");
+    const advanceUnder5 = advanceable.filter(s => s.rank < 5).length;
+    const advanceOver5 = advanceable.filter(s => s.rank >= 5).length;
+
     // A Utility Skill can boost an Attack/Spell if its scope matches by melee/ranged or by name.
     const boostsFor = skill => utilitySkills.filter(u => {
       if (u.buffScope === "none") return false;
@@ -101,26 +113,35 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     });
     for (const s of [...attackSkills, ...spellSkills]) s.boosts = boostsFor(s);
 
+    // Utility Skills scoped to buff a reactive Evade/Surprise Check instead of an Attack/Spell.
+    const evadeBoosts = utilitySkills.filter(s => s.buffScope === "evade");
+    const surpriseBoosts = utilitySkills.filter(s => s.buffScope === "surprise");
+
     const gear = actor.items.filter(i => i.type === "gear")
       .map(item => {
         const linkedSkill = skillItems.find(s => s.name === item.system.skill);
+        // The weapon's own die drives damage now; fall back to the linked Skill's innate damage.
+        const damageDisplay = item.system.damage || linkedSkill?.system.damage || "";
         return {
           id: item.id, name: item.name, img: item.img, ...item.system,
           kindLabel: CRAWLER.gearKinds[item.system.kind] ?? item.system.kind,
           slotLabel: CRAWLER.gearSlots[item.system.slot] ?? item.system.slot,
           linkedSkillId: linkedSkill?.id ?? null,
           linkedSkillDamage: linkedSkill?.system.damage ?? "",
+          damageDisplay,
           pinned: hotlistIds.includes(item.id)
         };
       });
 
     // One occupant per exclusive slot (head/torso/arms/hands/legs/feet); accessories stack to 10.
+    // Weapons are held in hands (a separate two-hand budget), not worn, so they're excluded here.
     const exclusiveSlots = ["head", "torso", "arms", "hands", "legs", "feet"];
     const gearSlots = exclusiveSlots.map(slot => ({
       slot, label: CRAWLER.gearSlots[slot],
-      item: gear.find(g => g.slot === slot && g.equipped) ?? null
+      item: gear.find(g => g.slot === slot && g.equipped && g.kind !== "weapon") ?? null
     }));
-    const accessories = gear.filter(g => g.slot === "accessory" && g.equipped);
+    const accessories = gear.filter(g => g.slot === "accessory" && g.equipped && g.kind !== "weapon");
+    const handsInUse = this.document.handsInUse();
 
     const hotlist = hotlistIds
       .map(id => actor.items.get(id))
@@ -164,6 +185,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
         key, label, abbr: key.toUpperCase(),
         value: system.attributes[key].value,
         bonus: system.attributes[key].bonus,
+        gearBonus: system.equipBonuses?.attributes?.[key] ?? 0,
         total: system.attributes[key].total,
         mod: system.attributes[key].mod
       })),
@@ -172,10 +194,16 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       spellSkills,
       utilitySkills,
       features,
+      evadeBoosts,
+      surpriseBoosts,
       weapons: gear.filter(g => g.kind === "weapon"),
       otherGear: gear.filter(g => g.kind !== "weapon"),
       gearSlots,
       accessories,
+      handsInUse,
+      maxHands: CRAWLER.maxHands,
+      advanceUnder5,
+      advanceOver5,
       hotlist,
       effects,
       hpSlots: Array.from({ length: 10 }, (_, i) => ({
@@ -233,8 +261,14 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     return this.document.rollAttribute(target.dataset.key, rollModifiers(event));
   }
 
-  static async _onRollEvadeCheck(event) {
-    return this.document.rollEvadeCheck(rollModifiers(event));
+  static async _onRollEvadeCheck(event, target) {
+    const boostId = target.closest(".crawl-stat")?.querySelector("select[data-boost]")?.value || null;
+    return this.document.rollEvadeCheck({ ...rollModifiers(event), boostId });
+  }
+
+  static async _onRollSurpriseCheck(event, target) {
+    const boostId = target.closest(".crawl-stat")?.querySelector("select[data-boost]")?.value || null;
+    return this.document.rollSurpriseCheck({ ...rollModifiers(event), boostId });
   }
 
   static async _onRollSkill(event, target) {
@@ -259,6 +293,14 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     return item.update({ "system.rank": rank });
   }
 
+  static async _onAdjustQuantity(event, target) {
+    const item = this.document.items.get(target.closest("[data-item-id]").dataset.itemId);
+    if (!item) return;
+    const delta = Number(target.dataset.delta ?? 1);
+    const quantity = Math.max(0, item.system.quantity + delta);
+    return item.update({ "system.quantity": quantity });
+  }
+
   static async _onToggleEquip(event, target) {
     return this.document.equipGear(target.closest("[data-item-id]").dataset.itemId);
   }
@@ -273,6 +315,10 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
 
   static async _onRollHotlist(event, target) {
     return this.document.rollHotlistEntry(target.closest("[data-item-id]").dataset.itemId);
+  }
+
+  static async _onAdvanceSkills(event, target) {
+    return this.document.advanceSkills(target.dataset.mode);
   }
 
   static async _onCreateItem(event, target) {

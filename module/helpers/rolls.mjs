@@ -51,7 +51,7 @@ function signed(mod) {
  * from its flags.
  */
 export async function rollCheck({
-  actor, label, mod = 0, dc = null, itemId = null, mobAttackIndex = null,
+  actor, label, mod = 0, dc = null, itemId = null, weaponId = null, mobAttackIndex = null,
   rank = 0, bonusDamage = 0, extraDamage = "", showDamage = false, advantage = false, disadvantage = false,
   flavor = "", relativeTo = actor
 }) {
@@ -84,7 +84,7 @@ export async function rollCheck({
     sound: CONFIG.sounds.dice,
     flags: {
       [SYSTEM_ID]: {
-        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex,
+        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, weaponId, mobAttackIndex,
         rank, bonusDamage, extraDamage, total: roll.total, crit, fumble
       }
     }
@@ -98,19 +98,19 @@ export async function rollCheck({
  */
 export async function resolveAttack({
   actor, label, mod, advantage = false, disadvantage = false,
-  itemId = null, mobAttackIndex = null, rank = 0, bonusDamage = 0, extraDamage = "",
+  itemId = null, weaponId = null, mobAttackIndex = null, rank = 0, bonusDamage = 0, extraDamage = "",
   target = game.user.targets.first(), flavor = "", relativeTo = actor
 }) {
   if (target?.actor?.type === "crawler") {
-    return postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, extraDamage, target, flavor, relativeTo });
+    return postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, weaponId, mobAttackIndex, rank, bonusDamage, extraDamage, target, flavor, relativeTo });
   }
   return rollCheck({
     actor, label, mod, advantage, disadvantage,
-    dc: targetEvade(target), itemId, mobAttackIndex, rank, bonusDamage, extraDamage, showDamage: true, flavor, relativeTo
+    dc: targetEvade(target), itemId, weaponId, mobAttackIndex, rank, bonusDamage, extraDamage, showDamage: true, flavor, relativeTo
   });
 }
 
-async function postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, mobAttackIndex, rank, bonusDamage, extraDamage, target, flavor, relativeTo }) {
+async function postPendingAttack({ actor, label, mod, advantage, disadvantage, itemId, weaponId, mobAttackIndex, rank, bonusDamage, extraDamage, target, flavor, relativeTo }) {
   const roll = await new Roll(`${d20Formula(advantage, disadvantage)} + @mod`, { mod }).evaluate();
   const die = activeDie(roll);
   const crit = die === 20;
@@ -137,7 +137,7 @@ async function postPendingAttack({ actor, label, mod, advantage, disadvantage, i
     sound: CONFIG.sounds.dice,
     flags: {
       [SYSTEM_ID]: {
-        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, mobAttackIndex, rank, bonusDamage, extraDamage,
+        actorId: actor.id, tokenId: actor.token?.id ?? null, itemId, weaponId, mobAttackIndex, rank, bonusDamage, extraDamage,
         attackTotal: roll.total, attackCrit: crit, attackFumble: fumble,
         targetActorId: target.actor.id, targetTokenId: target.document?.id ?? target.id,
         awaitingEvade: true
@@ -152,7 +152,7 @@ async function postPendingAttack({ actor, label, mod, advantage, disadvantage, i
  */
 export async function postEvadeResult({
   defenderName, evadeRoll, attackTotal, attackCrit, attackFumble, label,
-  attackerActorId, attackerTokenId, itemId, mobAttackIndex, rank, bonusDamage, extraDamage
+  attackerActorId, attackerTokenId, itemId, weaponId, mobAttackIndex, rank, bonusDamage, extraDamage
 }) {
   let hit, naturalOne = false, evadeTotal = null, evadeDie = null;
 
@@ -183,25 +183,32 @@ export async function postEvadeResult({
     flags: {
       [SYSTEM_ID]: {
         actorId: attackerActorId, tokenId: attackerTokenId,
-        itemId, mobAttackIndex, rank, bonusDamage, extraDamage,
+        itemId, weaponId, mobAttackIndex, rank, bonusDamage, extraDamage,
         doubleDamage: naturalOne
       }
     }
   });
 }
 
-/** Weapon/spell damage. A crit doubles the number of base damage dice. If the item's
- * "grants a Rank Damage Die" toggle is on (i.e. its own book Upgrade text grants one — this
- * is per-item, not automatic for every weapon), that die and any flat bonus damage (from
- * size) are added afterward, undoubled. */
-export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDamage = 0, extraDamage = "", doubleDamage = false }) {
-  const dmgAttrSetting = item.system.damageAttribute;
-  const attrKey = (dmgAttrSetting && dmgAttrSetting !== "same") ? dmgAttrSetting : item.system.attribute;
+/**
+ * Attack damage from a Skill/weapon pair. The **weapon** owns the base damage die (falling back
+ * to the Skill's innate `damage` for weaponless attacks like unarmed Brawl or a Spell); the
+ * **Skill** owns the attribute mod and the Rank Damage Die. A crit doubles the base dice; the
+ * Rank die and any flat bonus damage (from size) are added afterward, undoubled.
+ *
+ * Either of `skill`/`weapon` may be null (a bare Skill roll passes only `skill`; a mob attack
+ * uses neither and never reaches here).
+ */
+export async function rollDamage({ actor, skill = null, weapon = null, crit = false, rank = 0, bonusDamage = 0, extraDamage = "", doubleDamage = false }) {
+  const name = weapon?.name ?? skill?.name ?? "Attack";
+  // Base damage die: the weapon controls it; fall back to the Skill's innate damage.
+  const baseDie = weapon?.system.damage || skill?.system.damage || "1d6";
+  const attrKey = resolveDamageAttr(weapon, skill);
   const attrMod = (attrKey && attrKey !== "none") ? (actor.system.attributes?.[attrKey]?.mod ?? 0) : 0;
-  const baseDie = item.system.damage || "1d6";
   const die = crit ? doubleDiceCount(baseDie) : baseDie;
-  const rankDie = item.system.rankDamageDie
-    ? (item.system.rankDamageDieFormula || CRAWLER.rankDamageDie(rank))
+  // The Rank Damage Die is a property of the Skill's Rank scaling / Upgrade, not the weapon.
+  const rankDie = skill?.system.rankDamageDie
+    ? (skill.system.rankDamageDieFormula || CRAWLER.rankDamageDie(rank))
     : "";
 
   let formula = `${die} + @attr`;
@@ -213,10 +220,23 @@ export async function rollDamage({ actor, item, crit = false, rank = 0, bonusDam
   const roll = await new Roll(formula, { attr: attrMod }).evaluate();
   return postDamageCard({
     actor,
-    label: `${crit ? "Critical damage" : "Damage"} — ${item.name}`,
+    label: `${crit ? "Critical damage" : "Damage"} — ${name}`,
     roll,
     crit
   });
+}
+
+/**
+ * Pick the attribute whose mod is added to damage. A weapon's own override wins (e.g. a bow that
+ * hits with DEX but damages off STR), then the Skill's damage-attribute override, and finally
+ * the Skill's to-hit attribute ("same"). Returns "none" when nothing applies.
+ */
+function resolveDamageAttr(weapon, skill) {
+  const w = weapon?.system.damageAttribute;
+  if (w && w !== "same") return w;
+  const s = skill?.system.damageAttribute;
+  if (s && s !== "same") return s;
+  return skill?.system.attribute ?? "none";
 }
 
 /** Post a plain info card (name + flavor text, no roll) — used for Passive skills, which
@@ -360,6 +380,21 @@ export async function applyManaToSelected(amount, full = false) {
   return ChatMessage.create({
     content: `<div class="crawl-notice crawl-heal">
       <span class="crawl-tab">Mana Restored</span>
+      <ul class="crawl-apply-list">${rows}</ul></div>`
+  });
+}
+
+/** Summarise a Skill advancement pass (see CrawlerActor#advanceSkills): which Skills gained a
+ *  Rank, or a note that nothing was eligible. No roll — a flat +1 per used Skill in the bracket. */
+export async function postAdvancementCard({ actor, hours, results = [] }) {
+  const rows = results.length
+    ? results.map(r => `<li><strong>${r.name}</strong> Rank ${r.from} → ${r.to}</li>`).join("")
+    : "<li>No used Skills in this bracket. Use Skills first (their advancement box ticks), then advance.</li>";
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">Advancement — ${hours}h play</span>
       <ul class="crawl-apply-list">${rows}</ul></div>`
   });
 }
