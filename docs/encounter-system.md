@@ -18,6 +18,8 @@ Everything else about an encounter — how it starts, how turns are ordered, wha
 tracker row shows — is Foundry's default, which knows nothing about Surprise rounds, Health Bar
 slots, or Crawlers-vs-Mobs sides. This spec closes that gap in three prioritized pieces:
 
+0. **Players roll; the DM never rolls** — a mob's attack is a *static* value the crawler evades
+   against, not a d20 roll. This corrects existing behavior (see §0).
 1. **Surprise round** — a round-0 ambush phase driven by the existing Surprise stat.
 2. **Health Bars in the tracker** — slot pips (filled / temp / multi-bar boss) as the combatant
    resource, replacing the default numeric HP bar.
@@ -25,13 +27,27 @@ slots, or Crawlers-vs-Mobs sides. This spec closes that gap in three prioritized
 
 Guiding constraint: **reuse the existing data model and roll flows; add only encounter wiring.**
 Evade, Surprise, Health Bar slots, Damage Resistance, and cooldowns are all already implemented —
-the work is surfacing and sequencing them, not re-deriving them.
+the work is surfacing and sequencing them, not re-deriving them. The one exception is §0, which is
+a correctness fix to the existing attack flow rather than new encounter wiring.
+
+### Design principle: player-facing rolls
+
+DCC is a **player-facing dice** system — every die that matters is rolled by a player. The DM
+never rolls to attack and never rolls to defend. Concretely:
+
+- A **crawler attacks a mob:** the crawler rolls to hit against the mob's **static Evade**. ✅
+  Already correct (`resolveAttack` → `rollCheck` with `dc: targetEvade(target)`).
+- A **mob attacks a crawler:** the crawler rolls **Evade** against the mob's **static attack
+  value**. ❌ Currently the mob *also* rolls a d20 (§0 fixes this).
+
+Mob **defense** already honors this — Evade is a fixed number the crawler rolls against, not a
+mob roll. Only mob **offense** violates it today.
 
 ## What already exists (do not rebuild)
 
 | Concept | Where it lives | Notes |
 |---------|----------------|-------|
-| **Evade** (`10 + dex.mod + …`) | `models.mjs:94` (crawler), `models.mjs:203` (mob); reactive flow in `rolls.mjs` + `documents.mjs:281` + `evade-card.hbs` | Attacker rolls; defender chooses Evade-or-take-hit. Replaces static AC. |
+| **Evade** (`10 + dex.mod + …`) | `models.mjs:94` (crawler), `models.mjs:203` (mob); reactive flow in `rolls.mjs` + `documents.mjs:281` + `evade-card.hbs` | Crawler-vs-mob: crawler rolls to hit the mob's static Evade ✅. Mob-vs-crawler: crawler rolls Evade, but the mob *also* rolls a d20 today ❌ — see §0. |
 | **Surprise** (`10 + int.mod + …`) | `models.mjs:95` / `models.mjs:204`; boostable via Utility skills (`buffScope: "surprise"`) | Modeled as a stat and a boostable check — **no round mechanic yet.** |
 | **Health Bar slots** | crawler `hp.filledSlots`/`tempSlots` (max 10, `models.mjs:29`); mob `hp.maxSlots`/`filledSlots`/`slotValue` (`models.mjs:173`) | Boss slots from `bossSeverity` Table 50 (`models.mjs:208–210`). Damage/heal applied in whole slots (`documents.mjs:311–370`). |
 | **Initiative** | `crawler.mjs:20` | Stock Foundry initiative with a custom formula. |
@@ -58,6 +74,85 @@ New files (proposed), to keep `crawler.mjs` a thin wiring layer as it is today:
 
 Registered in the `init` hook next to the existing `CONFIG.Combat.initiative` line, and their
 templates added to the `preload([...])` list.
+
+---
+
+## 0. Mob attacks: no DM dice
+
+A correctness fix, not new encounter wiring — but foundational, so it leads. Today a mob's attack
+rolls its own d20; DCC's player-facing model says it must not.
+
+### Current behavior (the bug)
+
+When a mob attacks a crawler, `resolveAttack` routes to `postPendingAttack`
+(`rolls.mjs:104–147`), which rolls the **mob's** d20:
+
+```js
+// rolls.mjs:114 — the DM rolls here, which DCC forbids
+const roll = await new Roll(`${d20Formula(advantage, disadvantage)} + @mod`, { mod }).evaluate();
+```
+
+The crawler then rolls Evade, and `postEvadeResult` decides the hit by comparing **two** d20
+rolls (`rolls.mjs:167`):
+
+```js
+hit = naturalOne || attackTotal >= evadeTotal;   // attacker die vs defender die
+```
+
+So a single mob attack burns two d20 rolls, one of them the DM's. Mob attack data already stores a
+flat `attack` modifier (default `3`, `documents.mjs:474`) that today feeds `1d20 + 3`.
+
+### Target behavior
+
+The mob contributes a **static attack value**; only the crawler rolls.
+
+- **Static attack value** = `10 + atk.attack` (mirrors `Evade = 10 + dex.mod`; a default mob is
+  `13`, comparable to a starting crawler's Evade of ~12). This is a passive to-hit DC, computed —
+  never rolled.
+- The crawler rolls **Evade** and **avoids the hit iff `evadeTotal >= mobAttackValue`**. This is
+  the exact mirror of a crawler attacking a mob's static Evade, just with the roles of the fixed
+  number and the rolled number swapped.
+- **Crit / fumble move to the defender's die**, since the attacker no longer has one:
+  - Evade **natural 1** → auto-hit, and (as today) `doubleDamage` (`rolls.mjs:167,187`).
+  - Evade **natural 20** → auto-evade, regardless of the static value.
+  - "Take the hit" (skip Evade) → still a plain hit, no crawler roll (`skipEvade`,
+    `documents.mjs:286`).
+
+The mob **crit-on-attack** path disappears (there's no mob d20 to roll a 20). If mobs still need a
+way to crit, gate it on the crawler's Evade fumble (already the natural-1 → double-damage path) or
+a mob trait — do **not** reintroduce a mob attack roll.
+
+### Code touch points
+
+Contained to the mob-attack branch of the reactive flow; the crawler-attacks-mob path is untouched.
+
+- `rolls.mjs` `postPendingAttack` — stop rolling the mob d20; carry the **static** `mobAttackValue`
+  (and `advantage`/`disadvantage`, which now bias the *crawler's* Evade, not a mob roll) onto the
+  pending-attack flags instead of `attackTotal`/`attackCrit`/`attackFumble`.
+- `rolls.mjs` `postEvadeResult` — compare `evadeTotal` against `mobAttackValue`; derive crit/fumble
+  from the Evade die (nat 20 auto-evade, nat 1 auto-hit) rather than the attacker die.
+- `templates/chat/attack-pending.hbs` — present the incoming attack as a static value ("Evade DC
+  13"), not a rolled total, so the card never shows a DM die.
+- `documents.mjs` `rollMobAttack` (`:441`) and `resolveAttack` (`rolls.mjs:99`) — the mob branch
+  passes a static value; the crawler-attacks-mob branch is unchanged.
+
+### Design decisions to lock before build
+
+- **Static formula:** `10 + atk.attack` (recommended, mirrors Evade) vs. treating the stored
+  `attack` field as the whole static value. Recommendation keeps the field's current "modifier"
+  meaning intact and avoids re-tuning existing mobs.
+- **Advantage/disadvantage:** with no mob roll, these now apply to the **crawler's Evade** die.
+  Confirm the direction (a mob attacking with Advantage imposes **disadvantage** on the crawler's
+  Evade).
+- **Migration:** existing mob `attack` values were authored for a `1d20 + attack` contest. Under a
+  static `10 + attack`, average difficulty shifts slightly; note it for playtest, no data migration
+  needed.
+
+### Scope note
+
+This is the only part of the spec that edits existing roll code rather than adding encounter
+wiring. It's independent of §§1–3 and can ship first (it needs no Combat subclass), but it's listed
+as §0 because the player-facing-rolls principle underpins the whole encounter model.
 
 ---
 
@@ -218,18 +313,23 @@ per-token rolls.
 
 ## Rollout / phasing
 
-Each piece is independently shippable and independently reversible (all gated behind a per-encounter
-flag). Suggested order — lowest risk first:
+§§1–3 are each independently shippable and reversible (gated behind a per-encounter flag); §0 is a
+standalone correctness fix. Suggested order — lowest risk first:
 
-1. **Health Bars in tracker** (§2, Present option). Pure UI over existing data; no rules change, no
-   schema change. Good first slice, immediately visible.
-2. **Group initiative** (§3). Contained to the Combat/Combatant subclasses; falls back to today's
+1. **Mob attacks: no DM dice** (§0). Corrects the player-facing-rolls violation. Contained to the
+   mob branch of the attack flow; no Combat subclass, no schema change. Ship first — it's a rules
+   correction the rest assumes.
+2. **Health Bars in tracker** (§2, Present option). Pure UI over existing data; no rules change, no
+   schema change. Immediately visible.
+3. **Group initiative** (§3). Contained to the Combat/Combatant subclasses; falls back to today's
    formula when off.
-3. **Surprise round** (§1). Depends on the round-lifecycle overrides introduced in step 2 and reads
+4. **Surprise round** (§1). Depends on the round-lifecycle overrides introduced in step 3 and reads
    best from the side model, so it lands last.
 
 ## Open questions for the author
 
+- **Mob attack static value:** `10 + atk.attack` (recommended) or the stored `attack` as the whole
+  value? And should mob Advantage map to crawler-Evade disadvantage?
 - **Surprise penalty:** flat-footed (recommended), skip-turn, or attacker-Advantage?
 - **Multi-bar bosses:** present-only (recommended for v1) or model `hp.bars`?
 - **Side definition:** `actor.type` + override flag (recommended) or an explicit faction field?
