@@ -111,7 +111,9 @@ The mob contributes a **static attack value**; only the crawler rolls.
   never rolled.
 - The crawler rolls **Evade** and **avoids the hit iff `evadeTotal >= mobAttackValue`**. This is
   the exact mirror of a crawler attacking a mob's static Evade, just with the roles of the fixed
-  number and the rolled number swapped.
+  number and the rolled number swapped. Because a crawler-vs-mob attack hits on `total >= dc`
+  (`rolls.mjs:62`), meet-or-beat here means **ties always go to the player who rolls** — attacker
+  on offense, defender on Evade. That symmetry is intentional; keep it.
 - **Crit / fumble move to the defender's die**, since the attacker no longer has one:
   - Evade **natural 1** → auto-hit, and (as today) `doubleDamage` (`rolls.mjs:167,187`).
   - Evade **natural 20** → auto-evade, regardless of the static value.
@@ -129,8 +131,14 @@ Contained to the mob-attack branch of the reactive flow; the crawler-attacks-mob
 - `rolls.mjs` `postPendingAttack` — stop rolling the mob d20; carry the **static** `mobAttackValue`
   (and `advantage`/`disadvantage`, which now bias the *crawler's* Evade, not a mob roll) onto the
   pending-attack flags instead of `attackTotal`/`attackCrit`/`attackFumble`.
+- `documents.mjs` `rollEvade` (`:279`) — **currently takes only `flags` and no adv/disadv.** Extend
+  it to read `advantage`/`disadvantage` from the pending flags and pass them into its `Roll` (via
+  `d20Formula`), so the size-gap rule that `rollMobAttack` computes (`documents.mjs:445,450`) still
+  applies — now to the defender's die. Without this, §0 silently drops the size Advantage rule.
 - `rolls.mjs` `postEvadeResult` — compare `evadeTotal` against `mobAttackValue`; derive crit/fumble
-  from the Evade die (nat 20 auto-evade, nat 1 auto-hit) rather than the attacker die.
+  from the Evade die (nat 20 auto-evade, nat 1 auto-hit) rather than the attacker die. The nat-1
+  path already exists (auto-hit + `doubleDamage` + the "Major Injury" −5 effect,
+  `documents.mjs:301`); §0 only adds the nat-20 = auto-evade side.
 - `templates/chat/attack-pending.hbs` — present the incoming attack as a static value ("Evade DC
   13"), not a rolled total, so the card never shows a DM die.
 - `documents.mjs` `rollMobAttack` (`:441`) and `resolveAttack` (`rolls.mjs:99`) — the mob branch
