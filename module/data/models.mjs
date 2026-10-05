@@ -52,6 +52,24 @@ export class CrawlerData extends foundry.abstract.TypeDataModel {
       gold: num(0, { min: 0 }),
       injuryPenalty: num(0),
       hotlist: new fields.ArrayField(new fields.StringField(), { initial: [] }),
+      // Grinding (Crawlers & Customization, p. 43-44): a running total of all grinding hours,
+      // separate from any one Skill's own progress, that triggers a level-up once it reaches
+      // the crawler's current Level; plus a session log since the book asks players to keep
+      // one somewhere. Per-Skill accrued hours live on SkillData instead (system.grindHours).
+      grinding: new fields.SchemaField({
+        hoursTowardLevel: num(0, { min: 0 }),
+        log: new fields.ArrayField(new fields.SchemaField({
+          date: new fields.StringField({ initial: "" }),
+          hoursDeclared: num(0, { min: 0 }),
+          hoursProductive: num(0, { min: 0 }),
+          notes: new fields.StringField({ initial: "" }),
+          // Which Skills got hours from this session and how many, for the Grind Log display.
+          assigned: new fields.ArrayField(new fields.SchemaField({
+            name: new fields.StringField({ initial: "" }),
+            hours: num(0, { min: 0 })
+          }), { initial: [] })
+        }), { initial: [] })
+      }),
       details: new fields.SchemaField({
         race: new fields.StringField({ initial: "Unmodified Human" }),
         className: new fields.StringField({ initial: "None (unlocks on Floor 3)" }),
@@ -255,6 +273,11 @@ export class SkillData extends foundry.abstract.TypeDataModel {
       damageAttribute: new fields.StringField({ initial: "same", choices: CRAWLER.damageAttributeChoices }),
       rank: num(0, { min: 0, max: 20 }),
       floorBonus: num(0),
+      // Grinding (Crawlers & Customization, p. 43-44): hours accrued toward this Skill's next
+      // Grind Advancement Check. Separate from `used`/normal play-advancement. The book's "once
+      // per day" limit isn't enforced here — there's no reliable in-game-day clock to gate on,
+      // so it's left to the table to self-police, same as its "give it a rest!" framing.
+      grindHours: num(0, { min: 0 }),
       // Ticked automatically whenever this Skill is rolled (pass or fail); cleared by the player.
       // Marks the Skill as practised since the last advancement — feeds advancement rolls.
       used: new fields.BooleanField({ initial: false }),
