@@ -34,6 +34,9 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       unpinItem: CrawlerSheet._onUnpinItem,
       rollHotlist: CrawlerSheet._onRollHotlist,
       advanceSkills: CrawlerSheet._onAdvanceSkills,
+      logGrindSession: CrawlerSheet._onLogGrindSession,
+      rollGrindAdvancement: CrawlerSheet._onRollGrindAdvancement,
+      levelUpViaGrinding: CrawlerSheet._onLevelUpViaGrinding,
       createEffect: CrawlerSheet._onCreateEffect,
       editEffect: CrawlerSheet._onEditEffect,
       toggleEffect: CrawlerSheet._onToggleEffect,
@@ -105,6 +108,24 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
     const advanceUnder5 = advanceable.filter(s => s.rank < 5).length;
     const advanceOver5 = advanceable.filter(s => s.rank >= 5).length;
 
+    // Grinding (Crawlers & Customization, p. 43-44): per-Skill accrued hours toward the next
+    // Grind Advancement Check, plus the actor's running total toward its next grind-level-up.
+    const grindingSkills = skills.filter(s => s.skillType !== "feature").map(s => {
+      const item = skillItems.find(i => i.id === s.id);
+      const grindHours = item.system.grindHours;
+      const needed = CRAWLER.grindThreshold(s.rank);
+      return {
+        id: s.id, name: s.name, rank: s.rank, grindHours, needed,
+        eligible: grindHours >= needed
+      };
+    });
+    const grinding = {
+      hoursTowardLevel: system.grinding.hoursTowardLevel,
+      readyToLevel: system.grinding.hoursTowardLevel >= system.level,
+      levelPct: Math.clamp(Math.round((system.grinding.hoursTowardLevel / Math.max(1, system.level)) * 100), 0, 100),
+      recentLog: [...(system.grinding.log ?? [])].slice(-10).reverse()
+    };
+
     // A Utility Skill can boost an Attack/Spell if its scope matches by melee/ranged or by name.
     const boostsFor = skill => utilitySkills.filter(u => {
       if (u.buffScope === "none") return false;
@@ -175,6 +196,7 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       tabs: [
         { id: "character", label: "Character" },
         { id: "skills", label: "Skills" },
+        { id: "grinding", label: "Grinding" },
         { id: "gear", label: "Gear" },
         { id: "hotlist", label: "Hotlist" },
         { id: "effects", label: "Effects" },
@@ -204,6 +226,8 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
       maxHands: CRAWLER.maxHands,
       advanceUnder5,
       advanceOver5,
+      grindingSkills,
+      grinding,
       hotlist,
       effects,
       hpSlots: Array.from({ length: 10 }, (_, i) => ({
@@ -318,7 +342,27 @@ export class CrawlerSheet extends RichTextMixin(HandlebarsMixin(ActorSheetV2)) {
   }
 
   static async _onAdvanceSkills(event, target) {
-    return this.document.advanceSkills(target.dataset.mode);
+    return this.document.advanceSkills(target.dataset.mode, rollModifiers(event));
+  }
+
+  static async _onLogGrindSession(event, target) {
+    const container = target.closest(".crawl-grind-log-form");
+    const hoursDeclared = Math.max(0, Math.round(Number(container.querySelector(".crawl-grind-declared")?.value)) || 0);
+    const hoursProductive = Math.max(0, Math.round(Number(container.querySelector(".crawl-grind-productive")?.value)) || 0);
+    const notes = container.querySelector(".crawl-grind-notes")?.value || "";
+    const assignments = Array.from(container.querySelectorAll(".crawl-grind-assign"))
+      .map(input => ({ skillId: input.dataset.skillId, hours: Math.max(0, Math.round(Number(input.value)) || 0) }))
+      .filter(a => a.hours > 0);
+    return this.document.grindSession({ hoursDeclared, hoursProductive, notes, assignments });
+  }
+
+  static async _onRollGrindAdvancement(event, target) {
+    const itemId = target.closest("[data-item-id]").dataset.itemId;
+    return this.document.rollGrindAdvancement(itemId, rollModifiers(event));
+  }
+
+  static async _onLevelUpViaGrinding() {
+    return this.document.levelUpViaGrinding();
   }
 
   static async _onCreateItem(event, target) {

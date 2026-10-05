@@ -384,11 +384,12 @@ export async function applyManaToSelected(amount, full = false) {
   });
 }
 
-/** Summarise a Skill advancement pass (see CrawlerActor#advanceSkills): which Skills gained a
- *  Rank, or a note that nothing was eligible. No roll — a flat +1 per used Skill in the bracket. */
+/** Summarise a Skill advancement pass (see CrawlerActor#advanceSkills): each used Skill's
+ *  individual Advancement Check has already been rolled and posted; this is the roll-up of
+ *  which ones succeeded (Rank went up) and which failed. */
 export async function postAdvancementCard({ actor, hours, results = [] }) {
   const rows = results.length
-    ? results.map(r => `<li><strong>${r.name}</strong> Rank ${r.from} → ${r.to}</li>`).join("")
+    ? results.map(r => `<li><strong>${r.name}</strong> — ${r.success ? `Rank ${r.from} → ${r.to}` : `Fail (rolled ${r.total} vs Rank ${r.from})`}</li>`).join("")
     : "<li>No used Skills in this bracket. Use Skills first (their advancement box ticks), then advance.</li>";
 
   return ChatMessage.create({
@@ -396,6 +397,32 @@ export async function postAdvancementCard({ actor, hours, results = [] }) {
     content: `<div class="crawl-notice crawl-heal">
       <span class="crawl-tab">Advancement — ${hours}h play</span>
       <ul class="crawl-apply-list">${rows}</ul></div>`
+  });
+}
+
+/** Summarise a logged Grinding session (see CrawlerActor#logGrindSession) and how its
+ *  productive hours were assigned across Skills. */
+export async function postGrindSessionCard({ actor, hoursDeclared, hoursProductive, assigned = [] }) {
+  const rows = assigned.length
+    ? assigned.map(a => `<li><strong>${a.name}</strong> +${a.hours}h (${a.total}/${a.needed}h toward next Advancement Check)</li>`).join("")
+    : "<li>No hours assigned to a Skill.</li>";
+  const lost = hoursDeclared - hoursProductive;
+
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">Grinding — ${hoursProductive}h${lost ? ` (of ${hoursDeclared}h declared)` : ""}</span>
+      <ul class="crawl-apply-list">${rows}</ul></div>`
+  });
+}
+
+/** Announce a level gained via accumulated Grinding hours (Crawlers & Customization, p. 44). */
+export async function postGrindLevelUpCard({ actor, level }) {
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="crawl-notice crawl-heal">
+      <span class="crawl-tab">Grinding — Level Up!</span>
+      <ul class="crawl-apply-list"><li>${actor.name} reaches Level ${level} from accumulated grinding hours.</li></ul></div>`
   });
 }
 

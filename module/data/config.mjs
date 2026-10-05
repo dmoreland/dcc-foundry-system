@@ -201,6 +201,13 @@ CRAWLER.scoreToMod = function (score) {
   return bracket ? bracket.mod : CRAWLER.statMods.at(-1).mod;
 };
 
+/** Grinding hours a Skill must accrue before it's eligible for a Grind Advancement Check
+ *  (Crawlers & Customization, p. 44) -- equal to its current Rank. Rank 0 is treated as needing
+ *  1 hour, since the literal 0-hour threshold would qualify the instant a session is declared. */
+CRAWLER.grindThreshold = function (rank) {
+  return Math.max(1, rank);
+};
+
 /** Rank -> bonus damage dice (Table 37: Rank Damage Dice Scaling). Not doubled on a crit. */
 CRAWLER.rankDamageDice = [
   { max: 1, die: "1" },

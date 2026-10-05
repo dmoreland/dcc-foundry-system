@@ -570,13 +570,14 @@ export class CrawlerActor extends Actor {
   }
 
   /**
-   * Advance every Skill that has been used (its advancement checkbox is ticked) within one Rank
-   * bracket, then clear those `used` flags. `mode` "under5" covers the 2-hour play button (used
-   * Skills below Rank 5); "over5" covers the 5-hour play button (used Skills at Rank 5+). Each
-   * qualifying Skill gains +1 Rank (capped at 20). Features/Passive skills never advance this
-   * way. Posts a summary card.
+   * Roll a Skill Advancement Check (p. 42) for every Skill that's been used (its advancement
+   * checkbox is ticked) within one Rank bracket, then clear those `used` flags regardless of
+   * result. `mode` "under5" covers the 2-hour play button (used Skills below Rank 5); "over5"
+   * covers the 5-hour play button (used Skills at Rank 5+). Each check is `1d20` (no stat mod)
+   * vs DC = the Skill's current Rank; meeting or beating it grants +1 Rank (capped at 20).
+   * Features/Passive skills never advance this way. Posts a per-Skill roll plus a summary card.
    */
-  async advanceSkills(mode) {
+  async advanceSkills(mode, { advantage = false, disadvantage = false } = {}) {
     const overFive = mode === "over5";
     const hours = overFive ? 5 : 2;
     const eligible = this.items.filter(i => i.type === "skill"
@@ -584,19 +585,88 @@ export class CrawlerActor extends Actor {
       && i.system.skillType !== "feature"
       && (overFive ? i.system.rank >= 5 : i.system.rank < 5));
 
-    // Report only Skills that actually gained a Rank (a maxed Skill still clears its flag).
-    const results = eligible
-      .filter(s => s.system.rank < 20)
-      .map(s => ({ name: s.name, from: s.system.rank, to: s.system.rank + 1 }));
-
-    if (eligible.length) {
-      await this.updateEmbeddedDocuments("Item", eligible.map(s => ({
-        _id: s.id,
-        "system.rank": Math.min(20, s.system.rank + 1),
-        "system.used": false
-      })));
+    const injuryPenalty = this.system.injuryPenalty ?? 0;
+    const results = [];
+    for (const s of eligible) {
+      const rank = s.system.rank;
+      const message = await Dice.rollCheck({
+        actor: this, label: `Skill Advancement Check — ${s.name}`,
+        mod: injuryPenalty, dc: rank, advantage, disadvantage
+      });
+      const total = message.flags?.[SYSTEM_ID]?.total ?? 0;
+      const success = total >= rank;
+      const to = success ? Math.min(20, rank + 1) : rank;
+      await s.update({ "system.rank": to, "system.used": false });
+      results.push({ name: s.name, from: rank, to, total, success });
     }
     return Dice.postAdvancementCard({ actor: this, hours, results });
+  }
+
+  /**
+   * Log a Grinding session (Crawlers & Customization, p. 43-44) and apply its productive hours
+   * across the chosen Skills. `assignments` is `[{ skillId, hours }]`. `hoursProductive` feeds
+   * the actor's running total toward its next grind-triggered level-up regardless of how the
+   * hours were assigned (the book tracks that total separately from any one Skill's progress).
+   * Posts a summary card. The book's "once per day per Skill" limit isn't enforced here — see
+   * SkillData.grindHours.
+   */
+  async grindSession({ hoursDeclared, hoursProductive, notes = "", assignments = [] }) {
+    const date = new Date().toISOString().slice(0, 10);
+    const assigned = [];
+
+    for (const { skillId, hours } of assignments) {
+      if (!hours) continue;
+      const skill = this.items.get(skillId);
+      if (!skill || skill.type !== "skill" || skill.system.skillType === "feature") continue;
+      const total = skill.system.grindHours + hours;
+      await skill.update({ "system.grindHours": total });
+      assigned.push({ name: skill.name, hours, total, needed: CRAWLER.grindThreshold(skill.system.rank) });
+    }
+
+    const log = [...(this.system.grinding.log ?? []), {
+      date, hoursDeclared, hoursProductive, notes,
+      assigned: assigned.map(a => ({ name: a.name, hours: a.hours }))
+    }];
+    await this.update({
+      "system.grinding.log": log,
+      "system.grinding.hoursTowardLevel": this.system.grinding.hoursTowardLevel + hoursProductive
+    });
+
+    return Dice.postGrindSessionCard({ actor: this, hoursDeclared, hoursProductive, assigned });
+  }
+
+  /**
+   * Roll a Skill Advancement Check earned via Grinding (p. 44) -- the same check as ordinary
+   * play-advancement (p. 42): 1d20, DC = the Skill's current Rank, no stat mod. Success (roll
+   * meets or beats the Rank) grants +1 Rank (cap 20); either way the Skill's accrued grinding
+   * hours reset to 0, so it has to be ground fresh toward its next Rank.
+   */
+  async rollGrindAdvancement(skillId, { advantage = false, disadvantage = false } = {}) {
+    const skill = this.items.get(skillId);
+    if (!skill) return;
+    const rank = skill.system.rank;
+    const injuryPenalty = this.system.injuryPenalty ?? 0;
+    const message = await Dice.rollCheck({
+      actor: this, label: `Grind Advancement — ${skill.name}`, mod: injuryPenalty, dc: rank, advantage, disadvantage
+    });
+    const total = message.flags?.[SYSTEM_ID]?.total ?? 0;
+    const success = total >= rank;
+    await skill.update({
+      "system.rank": success ? Math.min(20, rank + 1) : rank,
+      "system.grindHours": 0
+    });
+    return success;
+  }
+
+  /**
+   * Level up from accumulated Grinding hours (p. 44) once the running total reaches the
+   * crawler's current Level. Resets the total and posts an announcement. The book's "lowest
+   * level party member gains 1d2 levels" clause is a party-wide GM call, left as a manual step.
+   */
+  async levelUpViaGrinding() {
+    const level = this.system.level + 1;
+    await this.update({ "system.level": level, "system.grinding.hoursTowardLevel": 0 });
+    return Dice.postGrindLevelUpCard({ actor: this, level });
   }
 }
 

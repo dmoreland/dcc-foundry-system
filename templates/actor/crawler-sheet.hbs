@@ -124,10 +124,10 @@
   {{#if (crEq tab "skills")}}
   <div class="crawl-advance-bar">
     <span class="crawl-muted">Advancement</span>
-    <button type="button" data-action="advanceSkills" data-mode="under5" title="After 2 hours of play: advance every used Skill below Rank 5 (+1 Rank), then clear its box" {{#unless editable}}disabled{{/unless}}>
+    <button type="button" data-action="advanceSkills" data-mode="under5" title="After 2 hours of play: roll a Skill Advancement Check (1d20 vs Rank) for every used Skill below Rank 5, then clear its box (Shift = Advantage, Ctrl = Disadvantage)" {{#unless editable}}disabled{{/unless}}>
       2h Play — advance &lt;5 <span class="crawl-count">{{advanceUnder5}}</span>
     </button>
-    <button type="button" data-action="advanceSkills" data-mode="over5" title="After 5 hours of play: advance every used Skill at Rank 5 or above (+1 Rank), then clear its box" {{#unless editable}}disabled{{/unless}}>
+    <button type="button" data-action="advanceSkills" data-mode="over5" title="After 5 hours of play: roll a Skill Advancement Check (1d20 vs Rank) for every used Skill at Rank 5 or above, then clear its box (Shift = Advantage, Ctrl = Disadvantage)" {{#unless editable}}disabled{{/unless}}>
       5h Play — advance 5+ <span class="crawl-count">{{advanceOver5}}</span>
     </button>
   </div>
@@ -272,6 +272,79 @@
   <div class="crawl-list-foot">
     <button type="button" data-action="createItem" data-type="skill" data-skill-type="feature" data-label="Feature">New Feature</button>
   </div>
+  {{/if}}
+
+  {{#if (crEq tab "grinding")}}
+  <div class="crawl-bar crawl-bar-grind">
+    <span class="crawl-bar-label">Level via Grinding <span class="crawl-hint-icon" title="Keep a running total of all your grinding hours. Once it reaches your current Level, you level up and the total resets (Crawlers &amp; Customization p.44).">?</span></span>
+    <div class="crawl-bar-track"><div class="crawl-bar-fill" style="width: {{grinding.levelPct}}%"></div></div>
+    <div class="crawl-bar-values">
+      <span>{{grinding.hoursTowardLevel}} / {{system.level}}h</span>
+      {{#if editable}}
+      <button type="button" data-action="levelUpViaGrinding" {{#unless grinding.readyToLevel}}disabled{{/unless}} title="Gain a Level and reset the running total">Level Up</button>
+      {{/if}}
+    </div>
+  </div>
+
+  <h3 class="crawl-subhead">Log a Grind Session</h3>
+  <div class="crawl-grind-log-form">
+    <div class="crawl-grind-log-fields">
+      <label>Hours Declared
+        <input type="number" min="0" class="crawl-grind-declared" value="5" {{#unless editable}}disabled{{/unless}}>
+      </label>
+      <label>Hours Productive
+        <input type="number" min="0" class="crawl-grind-productive" value="5" title="After any Endurance-Check losses past 5h/day, GM complications, or Neighborhood Map/Borough Field Guide bonus hours" {{#unless editable}}disabled{{/unless}}>
+      </label>
+      <label class="crawl-grind-notes-label">Notes
+        <input type="text" class="crawl-grind-notes" placeholder="Neighborhood, complications, etc." {{#unless editable}}disabled{{/unless}}>
+      </label>
+    </div>
+
+    <div class="crawl-list-head crawl-row-grind">
+      <span>Skill</span><span>Rank</span><span>Accrued</span><span>Assign this session</span><span>Advance</span>
+    </div>
+    <ol class="crawl-list">
+      {{#each grindingSkills}}
+      <li class="crawl-row crawl-row-grind" data-item-id="{{this.id}}">
+        <span class="crawl-row-name">{{this.name}}</span>
+        <span class="crawl-mono">{{this.rank}}</span>
+        <span class="crawl-mono">{{this.grindHours}}/{{this.needed}}h</span>
+        <span>
+          <input type="number" min="0" class="crawl-grind-assign" data-skill-id="{{this.id}}" value="0" {{#unless ../editable}}disabled{{/unless}}>
+        </span>
+        <span>
+          {{#if this.eligible}}
+          <button type="button" data-action="rollGrindAdvancement" title="Roll a Skill Advancement Check — 1d20 vs DC {{this.rank}} (Shift = Advantage, Ctrl = Disadvantage)">Roll</button>
+          {{else}}—{{/if}}
+        </span>
+      </li>
+      {{else}}
+      <li class="crawl-empty">No grindable Skills yet — add an Attack, Spell, or Utility Skill first.</li>
+      {{/each}}
+    </ol>
+
+    {{#if editable}}
+    <div class="crawl-list-foot">
+      <button type="button" data-action="logGrindSession">Log Session</button>
+    </div>
+    {{/if}}
+  </div>
+
+  <h3 class="crawl-subhead">Grind Log</h3>
+  <ol class="crawl-list">
+    {{#each grinding.recentLog}}
+    <li class="crawl-row crawl-row-grind-log">
+      <span class="crawl-mono">{{this.date}}</span>
+      <span>{{this.hoursProductive}}h{{#unless (crEq this.hoursProductive this.hoursDeclared)}} (of {{this.hoursDeclared}}h){{/unless}}</span>
+      <span class="crawl-muted">{{this.notes}}</span>
+      <span class="crawl-grind-log-assigned">
+        {{#each this.assigned}}<span class="crawl-mono">{{this.name}} +{{this.hours}}h</span>{{#unless @last}}, {{/unless}}{{else}}<span class="crawl-muted">No hours assigned.</span>{{/each}}
+      </span>
+    </li>
+    {{else}}
+    <li class="crawl-empty">No grinding sessions logged yet.</li>
+    {{/each}}
+  </ol>
   {{/if}}
 
   {{#if (crEq tab "gear")}}
